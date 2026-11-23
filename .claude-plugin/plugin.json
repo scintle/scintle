@@ -1,0 +1,8 @@
+{
+  "name": "scintle",
+  "version": "0.0.1",
+  "description": "An idea board that keeps itself, with each idea's history behind every card.",
+  "author": { "name": "scintle contributors" },
+  "license": "MIT",
+  "keywords": ["ideas", "local-first", "planning", "lineage"]
+}

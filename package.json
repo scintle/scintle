@@ -1,0 +1,22 @@
+{
+  "name": "scintle",
+  "version": "0.0.1",
+  "description": "An idea board that keeps itself, with each idea's history behind every card.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "knip",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "scintle": "node --experimental-strip-types server/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "knip": "6.43.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

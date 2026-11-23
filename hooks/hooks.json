@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "NODE_NO_WARNINGS=1 node --experimental-strip-types \"${CLAUDE_PLUGIN_ROOT}/server/cli.ts\" hook || true", "timeout": 5 }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "NODE_NO_WARNINGS=1 node --experimental-strip-types \"${CLAUDE_PLUGIN_ROOT}/server/cli.ts\" hook || true", "timeout": 3 }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "NODE_NO_WARNINGS=1 node --experimental-strip-types \"${CLAUDE_PLUGIN_ROOT}/server/cli.ts\" hook || true", "timeout": 3 }] }]
+  }
+}

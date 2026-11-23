@@ -1,0 +1,2 @@
+server/lib/redact.ts, server/lib/files.ts and the transcript parser in server/ingest/parsers/
+are adapted from vibesenpai (MIT, vibesenpai contributors).
