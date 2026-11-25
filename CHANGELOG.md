@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1
+
+- Dropping an idea asks an optional "Anything to remember?" in your own words; it shows on the timeline.
+- `/scintle:plan` briefs now include how the idea ended or paused (dropped, parked, released), with the reason.
+- "Plan in a new session" in the plan dialog opens a terminal running `/scintle:plan` in the idea's folder (macOS Terminal, or `x-terminal-emulator` on Linux), and copies the command when it can't.
+- Board links like `#idea=I-010` open that idea.
+- Local endpoints for a Claude Code companion (find an idea by name or topic, read its history), token-protected like the rest; nothing calls them yet.
+- `npx scintle install` is published to npm.
+
 ## 0.1.0 (beta)
 
 The first public beta.

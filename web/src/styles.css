@@ -195,10 +195,17 @@ kbd { font: 500 10.5px var(--mono); color: var(--faint); border: 1px solid var(-
 .stage-badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--sc); }
 .stage-badge .caret { color: var(--muted); }
 .menu { position: absolute; top: calc(100% + 4px); left: -6px; z-index: 20; min-width: 230px; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 4px; animation: rise .12s ease-out; }
-.menu button { all: unset; cursor: pointer; display: flex; flex-direction: column; width: 100%; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 500; }
-.menu button small { color: var(--faint); font-size: 11.5px; font-weight: 400; }
+.menu button:not(.btn) { all: unset; cursor: pointer; display: flex; flex-direction: column; width: 100%; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 500; }
+.menu button:not(.btn) small { color: var(--faint); font-size: 11.5px; font-weight: 400; }
 .menu .menu-title { padding: 6px 10px 4px; }
-.menu button:hover, .menu button:focus-visible { background: var(--band); outline: none; }
+.menu button:not(.btn):hover, .menu button:not(.btn):focus-visible { background: var(--band); outline: none; }
+.menu.why { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px; min-width: 290px; }
+.menu.why .menu-title { padding: 4px 0 0; }
+.menu.why label { font-size: 13px; font-weight: 500; color: var(--ink); }
+.menu.why label small { color: var(--faint); font-weight: 400; margin-left: 4px; }
+.menu.why textarea { font: 13px/1.45 var(--body); color: var(--ink); background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 7px 9px; resize: vertical; }
+.menu.why textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.menu.why .why-actions { display: flex; justify-content: flex-end; gap: 6px; }
 .panel-body { overflow: auto; flex: 1; padding: 4px 0 30px; border-top: 1px solid var(--rule); }
 
 /* Timeline */

@@ -24,6 +24,8 @@ The stage menu on a card or in the panel moves an idea along: mark it planned or
 - **Not interested**: you looked at it and never wanted it. Only you can set this; Scintle never infers it.
 - **Crowded market**, **No real demand**, **Not feasible**, or **Other**.
 
+Then it asks **Anything to remember?**, optional. A line in your own words ("two free apps already do this") is what you, and Claude, will want a year later. It shows on the timeline and in the idea's brief.
+
 The reason shows as a pill on the card and can be used as a filter. Reviving an idea clears it.
 
 ## Adding an idea by hand

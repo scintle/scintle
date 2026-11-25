@@ -54,7 +54,10 @@ test('A stage move can be undone from the toast', async ({ page }) => {
   await page.getByRole('complementary').getByRole('button', { name: /Seed/ }).click();
   await page.getByRole('menuitem', { name: /Drop/ }).click();
   await page.getByRole('menuitem', { name: /Crowded market/ }).click();
+  await page.getByRole('textbox', { name: /Anything to remember/ }).fill('two free apps already cover national parks');
+  await page.getByRole('button', { name: 'Drop it' }).click();
   await expect(page.getByText('Closed ·')).toBeVisible();
+  await expect(page.getByRole('complementary')).toContainText('two free apps already cover national parks');
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByRole('region', { name: 'Seed' }).getByText('Trail alerts')).toBeVisible();
 });
@@ -138,7 +141,7 @@ test('Help and feedback: diagnostics show versions and counts, never an idea', a
   await page.getByLabel('Project').selectOption({ label: 'Help and feedback…' });
   const dialog = page.getByRole('dialog', { name: 'Help and feedback' });
   const diag = dialog.locator('pre.json');
-  await expect(diag).toContainText('Scintle 0.1.0');
+  await expect(diag).toContainText(/Scintle \d+\.\d+\.\d+/);
   await expect(diag).toContainText('Ideas:');
   await expect(diag).not.toContainText('Trail alerts');
   await expect(dialog.getByRole('link', { name: 'Send feedback' })).toHaveAttribute('href', /github\.com\/scintle\/scintle\/issues/);

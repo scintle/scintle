@@ -7,7 +7,8 @@ import { useStore } from '../store';
 
 export function StageMenu({ idea }: { idea: Idea }) {
   const act = useStore((s) => s.act);
-  const [open, setOpen] = useState<false | 'moves' | 'reasons'>(false);
+  const [open, setOpen] = useState<false | 'moves' | 'reasons' | { reason: Resolution }>(false);
+  const [why, setWhy] = useState('');
   const box = useRef<HTMLDivElement | null>(null);
   const moves = stageMoves(idea.stage);
 
@@ -21,10 +22,12 @@ export function StageMenu({ idea }: { idea: Idea }) {
     return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', close); };
   }, [open]);
 
-  const move = (type: string, label: string, reason?: Resolution): void => {
+  const move = (type: string, label: string, reason?: Resolution, note = ''): void => {
     setOpen(false);
-    void act(`/api/ideas/${idea.id}/stage`, { type, why: '', ...(reason ? { reason } : {}) }, `${label}: ${idea.title}`);
+    setWhy('');
+    void act(`/api/ideas/${idea.id}/stage`, { type, why: note, ...(reason ? { reason } : {}) }, `${label}: ${idea.title}`);
   };
+  const drop = (reason: Resolution, note: string): void => move('dropped', `Dropped (${RESOLUTION_LABEL[reason]})`, reason, note);
 
   return (
     <div className="stage-menu" ref={box}>
@@ -46,13 +49,39 @@ export function StageMenu({ idea }: { idea: Idea }) {
         <div className="menu" role="menu" aria-label="Why drop it?">
           <div className="menu-title eyebrow">Why drop it?</div>
           {DROP_REASONS.map((r) => (
-            <button key={r.reason} role="menuitem" onClick={() => move('dropped', `Dropped (${RESOLUTION_LABEL[r.reason]})`, r.reason)}>
+            <button key={r.reason} role="menuitem" onClick={() => setOpen({ reason: r.reason })}>
               <span>{RESOLUTION_LABEL[r.reason]}</span>
               <small>{r.hint}</small>
             </button>
           ))}
         </div>
       )}
+      {typeof open === 'object' && (
+        // The reason alone says little a year later; one line in the person's own words says why.
+        <form className="menu why" aria-label="Anything to remember?" onSubmit={(e) => { e.preventDefault(); drop(open.reason, why); }}>
+          <div className="menu-title eyebrow">Dropping as {RESOLUTION_LABEL[open.reason].toLowerCase()}</div>
+          <label htmlFor={`why-${idea.id}`}>Anything to remember? <small>optional</small></label>
+          <textarea
+            id={`why-${idea.id}`} autoFocus rows={2} maxLength={500} value={why}
+            placeholder={WHY_HINT[open.reason]}
+            onChange={(e) => setWhy(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); drop(open.reason, why); } }}
+          />
+          <div className="why-actions">
+            <button type="button" className="btn ghost small" onClick={() => drop(open.reason, '')}>Skip</button>
+            <button type="submit" className="btn primary small">Drop it</button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
+
+/** A nudge toward the kind of note that helps later: the specific thing, not the category again. */
+const WHY_HINT: Record<Resolution, string> = {
+  'not-interested': 'e.g. fun to think about, but not something I want to build',
+  crowded: 'e.g. two free apps already do this well',
+  'no-demand': 'e.g. asked five teachers; none would pay',
+  'not-feasible': 'e.g. needs data nobody publishes',
+  released: '', pivoted: '', merged: '', other: 'What made you stop?',
+};

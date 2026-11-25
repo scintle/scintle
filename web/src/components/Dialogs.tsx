@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
+import { post } from '../lib/api';
 
 function Modal({ children, onClose, wide = false, label }: { children: ReactNode; onClose: () => void; wide?: boolean; label: string }) {
   useEffect(() => {
@@ -60,6 +61,19 @@ export function BriefDialog({ body }: { body: string }) {
   const { setDialog, toast } = useStore();
   const id = /\((I-\d+)\)/.exec(body)?.[1] ?? '';
   const command = `/scintle:plan ${id}`;
+  const [opening, setOpening] = useState(false);
+  const openSession = async (): Promise<void> => {
+    setOpening(true);
+    try {
+      const r = await post<{ ok: boolean; cwd?: string; error?: string }>(`/api/ideas/${id}/plan-session`);
+      if (r.ok) toast(`Opened a new Claude Code session in ${r.cwd ?? 'a terminal'}`);
+      else { await copy(command, 'Command'); toast(`${r.error ?? 'Could not open a terminal'}. The command is copied instead.`); }
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setOpening(false);
+    }
+  };
   const copy = async (text: string, what: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(text);
@@ -76,14 +90,15 @@ export function BriefDialog({ body }: { body: string }) {
       </header>
       <div className="body">
         <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13.5 }}>
-          Paste <code>{command}</code> into any Claude Code session. It loads this brief and starts planning in plan mode.
-          The plan comes back to this idea's timeline.
+          <b>Plan in a new session</b> opens a terminal in this idea's project and starts Claude Code with this brief, in plan mode.
+          Or paste <code>{command}</code> into a session you already have open. The plan comes back to this idea's timeline.
         </p>
         <pre className="brief">{body}</pre>
       </div>
       <footer>
         <button className="btn ghost" onClick={() => void copy(body, 'Brief')}>Copy brief</button>
-        <button className="btn primary" autoFocus onClick={() => void copy(command, 'Command')}>Copy {command}</button>
+        <button className="btn" onClick={() => void copy(command, 'Command')}>Copy {command}</button>
+        <button className="btn primary" autoFocus disabled={opening} onClick={() => void openSession()}>{opening ? 'Opening…' : 'Plan in a new session'}</button>
       </footer>
     </Modal>
   );

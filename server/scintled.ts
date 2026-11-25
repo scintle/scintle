@@ -16,6 +16,7 @@ import { saveBrief } from './brief.ts';
 import { startResearch } from './jobs/research.ts';
 import { dataDir } from './lib/config.ts';
 import { writeAtomic, writeJson } from './lib/files.ts';
+import { contextFor, historyOf, ideaCard, planInNewSession, searchIdeas } from './handoff.ts';
 import { diagnostics } from './diagnostics.ts';
 import { maybePing, setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
 import { Live, waiting } from './live.ts';
@@ -104,6 +105,8 @@ function logos(): Record<string, string> {
   return out;
 }
 
+const logoFile = (id: string): string | undefined => logoFor(db, id) ?? (hasDrawnLogo(DIR, id) ? drawnLogoPath(DIR, id) : undefined);
+
 let drawing = false;
 /** Draw one missing logo at a time, only while nothing is being read. */
 async function drawMissing(): Promise<void> {
@@ -129,6 +132,12 @@ function folderList(): { path: string; docs: number }[] {
 
 const routes: [string, RegExp, Handler][] = [
   ['GET', /^\/api\/state$/, () => ({ ...snapshot(db), version, extracting: live.extracting ?? null, waiting: waiting(db), progress: live.progress, readError: live.lastError, consent: consented(db), logos: logos(), folders: folderList(), telemetry: telemetryStatus() })],
+  // Read-only: what a prompt that mentions ideas gets attached (the companion mod's prompt.submit hook).
+  ['POST', /^\/api\/context$/, ({ b }) => contextFor(db, str(b['text']).slice(0, 20_000), Array.isArray(b['skip']) ? b['skip'].map(String) : [])],
+  ['POST', /^\/api\/search$/, ({ b }) => searchIdeas(db, str(b['query']).slice(0, 500))],
+  ['GET', /^\/api\/card\/(I-\d+)$/, ({ m }) => ideaCard(db, m[1] as string) ?? { ok: false, error: 'no such idea' }],
+  ['GET', /^\/api\/history\/(I-\d+)$/, ({ m }) => ({ text: historyOf(db, m[1] as string) ?? null })],
+  ['POST', /^\/api\/ideas\/(I-\d+)\/plan-session$/, ({ m }) => planInNewSession(db, m[1] as string)],
   ['GET', /^\/api\/diagnostics$/, async () => ({ text: await diagnostics(db, live.lastError?.message ?? null) })],
   ['POST', /^\/api\/telemetry$/, ({ b }) => {
     setTelemetry(b['on'] === true);
@@ -205,7 +214,7 @@ const server = createServer(async (req, res) => {
   const logo = /^\/api\/logo\/(I-\d+)$/.exec(url.split('?')[0] ?? '');
   if (logo) {
     const id = logo[1] as string;
-    const file = logoFor(db, id) ?? (hasDrawnLogo(DIR, id) ? drawnLogoPath(DIR, id) : undefined);
+    const file = logoFile(id);
     if (!file) return send(res, 404, { error: 'no logo' });
     res.writeHead(200, {
       'content-type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream', 'cache-control': 'max-age=600',
@@ -219,7 +228,7 @@ const server = createServer(async (req, res) => {
     if (m === null || method !== req.method) continue;
     try {
       const out = await handle({ b: req.method === 'POST' ? await body(req) : {}, m });
-      if (req.method === 'POST' && !/\/(hook|brief|ask)$/.test(url)) changed();
+      if (req.method === 'POST' && !/\/(hook|brief|ask|context|search|plan-session)$/.test(url)) changed();
       return send(res, 200, out);
     } catch (e) {
       return send(res, 400, { ok: false, error: (e as Error).message });

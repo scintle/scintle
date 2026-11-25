@@ -338,3 +338,22 @@ Research: `~/Workspace/reports/Privacy first telemetry for Scintle.md`.
 **Cost:**
 - One more thing to publish on every release, and an npm account to own the name.
 - Publishing is the owner's step.
+
+## D30 · 2026-11-24 · Handing an idea to Claude: a pointer, a lookup, and a new session
+
+**Decision:**
+- The server answers four local, token-protected routes: `/api/context` (ideas a prompt names), `/api/search`, `/api/history/:id` and `/api/card/:id` (`server/handoff.ts`).
+- A prompt that names an idea gets a one-line **pointer**, never the brief. The model decides whether to read the history.
+- Names match only outside paths and URLs; IDs only outside quotes and code; titles need two words or eight letters. Each idea is pointed at once per session.
+- "Plan in a new session" opens a new terminal running `claude "/scintle:plan I-xxx"` in the folder the idea was last worked in. On failure it copies the command.
+- Briefs include lifecycle events with the drop reason and the person's own why.
+- Dropping asks an optional why.
+
+**Why:**
+- Copy and paste was the hand-off's friction, and several sessions may be open, so "the prompt box" is ambiguous; a new session is not.
+- On 936 real prompts the matcher fired on 15 (1.6%); about 12 were about the idea (`scripts/eval-match.ts`). A pointer costs one line when it misfires; a brief would cost hundreds.
+- A drop reason alone ("not interested") told Claude nothing a month later.
+
+**Cost:**
+- The companion that calls these routes is a Claude Code mod prototype outside this repo; until it ships, the routes are unused.
+- The new-session button drives Terminal.app through AppleScript, which asks for macOS automation permission the first time and ignores other terminals.

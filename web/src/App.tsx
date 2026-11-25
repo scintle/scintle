@@ -29,6 +29,19 @@ export function App() {
     return connectStream();
   }, [load]);
 
+  // #idea=I-010 opens that idea: how the Claude Code companion's "Open dashboard" lands on it.
+  const hasSnap = snap !== null;
+  useEffect(() => {
+    if (!hasSnap) return;
+    const focus = (): void => {
+      const id = /#idea=(I-\d+)/.exec(location.hash)?.[1];
+      if (id) select(id, null);
+    };
+    focus();
+    addEventListener('hashchange', focus);
+    return () => removeEventListener('hashchange', focus);
+  }, [hasSnap, select]);
+
   useEffect(() => {
     const k = (e: KeyboardEvent): void => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
