@@ -8,7 +8,7 @@ narrowed, pivoted, parked, released, dropped. Nothing to maintain; you correct i
 
 **Docs: [scintle.github.io/scintle](https://scintle.github.io/scintle/)**
 
-![Scintle's Lineage view: a dozen made-up ideas over five months](site/src/assets/home/shots/lineage.png)
+![Replaying five months of made-up ideas on Scintle's board: each one born, renamed, spun off and dropped, with the words behind every step](docs/media/scintle-replay.gif)
 
 ## Install
 
