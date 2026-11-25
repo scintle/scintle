@@ -4,6 +4,8 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { buildBrief } from './brief.ts';
+import { redact } from './lib/redact.ts';
+import { addEvent } from './store/ledger.ts';
 import type { Db } from './store/db.ts';
 
 const MAX_IDEAS = 2;
@@ -161,6 +163,84 @@ export function pickerIdeas(db: Db): PickIdea[] {
   return rows
     .map((r) => ({ ...r, problem: r.problem.slice(0, 160), last: r.last ?? 'born' }))
     .sort((a, b) => (OPEN_ORDER[a.stage] ?? 9) - (OPEN_ORDER[b.stage] ?? 9) || b.moved.localeCompare(a.moved));
+}
+
+export type Here = {
+  idea: { id: string; title: string; stage: string; step: string; detail: string; at: string } | null;
+  /** Other ideas worked on in this umbrella folder; 0 when the folder is one idea's. */
+  others: number;
+};
+
+/** One readable line for an event: its type's word, and what it says. */
+function stepOf(type: string, payload: string): { step: string; detail: string } {
+  const p = JSON.parse(payload) as Record<string, unknown>;
+  const s = (k: string): string => (typeof p[k] === 'string' ? (p[k] as string) : '');
+  const detail = s('decision') || s('approach') || s('plan') || s('summary') || s('problem') || s('note') || s('evidence') || s('why');
+  return { step: type, detail: detail.slice(0, 120) };
+}
+
+/**
+ * Where you left off in a folder (D34). A folder one idea dominates (60%+ of the events from sessions and documents
+ * there or below) is that idea's; otherwise it is an umbrella, and the answer is the idea last worked on in a real
+ * session there. Dropped and evolved ideas never show; nothing for the home folder.
+ */
+export function hereFor(db: Db, cwd: string): Here {
+  const dir = cwd.replace(/\/+$/, '');
+  if (dir === '' || dir === homedir()) return { idea: null, others: 0 };
+  // Redaction stores the home folder as "~" (server/lib/redact.ts), so a folder is looked up both ways.
+  const tilde = dir.startsWith(`${homedir()}/`) ? `~${dir.slice(homedir().length)}` : dir;
+  const like = (d: string): string => `${d.replace(/[\\%_]/g, '\\$&')}/%`;
+  const rows = db.prepare(
+    `SELECT e.idea_id AS id, COUNT(*) AS n, MAX(CASE WHEN s.harness != 'doc' THEN e.ts END) AS worked
+     FROM events e JOIN sessions s ON s.id = e.session_id JOIN ideas i ON i.id = e.idea_id
+     WHERE e.state != 'removed' AND i.stage NOT IN ('dropped', 'evolved')
+       AND (s.cwd IN (?, ?) OR s.cwd LIKE ? ESCAPE '\\' OR s.cwd LIKE ? ESCAPE '\\')
+     GROUP BY e.idea_id`,
+  ).all(dir, tilde, like(dir), like(tilde)) as { id: string; n: number; worked: string | null }[];
+  const total = rows.reduce((sum, r) => sum + r.n, 0);
+  const owner = rows.find((r) => r.n >= total * 0.6);
+  const recent = rows.filter((r) => r.worked !== null).sort((a, b) => (b.worked as string).localeCompare(a.worked as string))[0];
+  const pick = owner ?? recent;
+  if (pick === undefined) return { idea: null, others: 0 };
+  const idea = db.prepare('SELECT id, title, stage FROM ideas WHERE id = ?').get(pick.id) as { id: string; title: string; stage: string };
+  const last = db.prepare(
+    `SELECT type, payload, ts FROM events WHERE idea_id = ? AND state != 'removed' AND type != 'born' ORDER BY ts DESC LIMIT 1`,
+  ).get(pick.id) as { type: string; payload: string; ts: string } | undefined;
+  const step = last ? stepOf(last.type, last.payload) : { step: 'born', detail: '' };
+  return { idea: { ...idea, ...step, at: last?.ts ?? '' }, others: owner ? 0 : rows.length - 1 };
+}
+
+/**
+ * A plan approved in Claude Code, recorded on its idea as it happens (D35): the idea named by the brief's marker, or
+ * else the one idea the plan names. Once per idea and session; redacted before it is stored.
+ */
+export function recordPlan(db: Db, sessionId: string, plan: string): { id: string; title: string } | undefined {
+  const marked = /scintle:idea=(I-\d+)@v(\d+)/.exec(plan);
+  const named = matchIdeas(db, plan);
+  const ideaId = marked?.[1] ?? (named.length === 1 ? named[0] : undefined);
+  const idea = ideaId === undefined ? undefined : db.prepare('SELECT id, title FROM ideas WHERE id = ?').get(ideaId) as { id: string; title: string } | undefined;
+  if (idea === undefined || sessionId === '') return undefined;
+  if (db.prepare("SELECT 1 FROM events WHERE type = 'planned' AND idea_id = ? AND session_id = ?").get(idea.id, sessionId) !== undefined) return idea;
+  const text = redact(plan).text;
+  const title = /^#+\s*(.+)$/m.exec(text)?.[1] ?? text.slice(0, 120);
+  addEvent(db, {
+    ideaId: idea.id, type: 'planned', ts: new Date().toISOString(), origin: 'user', sessionId,
+    payload: { plan: title, ...(marked ? { briefVersion: Number(marked[2]) } : {}) },
+    excerpt: text.length > 1200 ? `${text.slice(0, 1200)} …` : text,
+  });
+  return idea;
+}
+
+export type Caught = { id: string; title: string; type: string; detail: string };
+
+/** What reading recorded since `since` (inferred events, by when they were recorded), optionally for one session. */
+export function caughtSince(db: Db, since: string, sessionId = ''): Caught[] {
+  const rows = db.prepare(
+    `SELECT e.idea_id AS id, i.title, e.type, e.payload FROM events e JOIN ideas i ON i.id = e.idea_id
+     WHERE e.origin = 'inferred' AND e.state != 'removed' AND e.created_at > ? AND (? = '' OR e.session_id = ?)
+     ORDER BY e.created_at`,
+  ).all(since, sessionId, sessionId) as { id: string; title: string; type: string; payload: string }[];
+  return rows.map((r) => ({ id: r.id, title: r.title, type: r.type, detail: stepOf(r.type, r.payload).detail }));
 }
 
 /** The folder the idea was last worked in, from its sessions; home when none still exists. */

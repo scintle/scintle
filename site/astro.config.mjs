@@ -45,6 +45,7 @@ export default defineConfig({
             { label: 'Correcting the board', slug: 'using/correcting' },
             { label: 'Questions it asks', slug: 'using/questions' },
             { label: 'Folders Scintle reads', slug: 'using/folders' },
+            { label: 'Scintle in your chats', slug: 'using/companion' },
             { label: 'Planning an idea', slug: 'using/planning' },
             { label: 'Commands', slug: 'using/commands' },
           ],

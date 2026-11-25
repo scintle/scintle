@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { contextFor, deadEnd, historyOf, ideaCard, matchIdeas, pickerIdeas, searchIdeas } from '../server/handoff.ts';
+import { caughtSince, contextFor, deadEnd, hereFor, historyOf, ideaCard, matchIdeas, pickerIdeas, recordPlan, searchIdeas } from '../server/handoff.ts';
+import { homedir } from 'node:os';
 import { openDb, type Db } from '../server/store/db.ts';
 import { addEvent, addLink, createIdea } from '../server/store/ledger.ts';
 
@@ -112,5 +113,57 @@ describe('the plan picker', () => {
     const list = pickerIdeas(db);
     expect(list.at(-1)).toMatchObject({ id: 'I-001', stage: 'dropped', last: 'dropped' });
     expect(list.slice(0, -1).every((i) => i.stage !== 'dropped')).toBe(true);
+  });
+});
+
+describe('where you left off', () => {
+  const session = (id: string, cwd: string, harness = 'claude-code') =>
+    db.prepare("INSERT INTO sessions (id, harness, parser, parser_match, transcript_path, started_at, cwd) VALUES (?, ?, 'p', 'exact', '/x', '2026-11-01T00:00:00Z', ?)").run(id, harness, cwd);
+  const ev = (idea: string, sid: string, ts: string) =>
+    addEvent(db, { ideaId: idea, type: 'decided', ts, origin: 'inferred', confidence: 0.9, payload: { decision: `call ${idea}` }, sessionId: sid });
+
+  it('gives a folder to the idea that owns it, even through redacted "~" paths, and "last here" in a shared folder', () => {
+    session('s1', '~/code/trailwatch');
+    session('s2', '~/code');
+    for (const t of ['2026-11-02', '2026-11-03']) ev('I-001', 's1', `${t}T10:00:00.000Z`);
+    ev('I-002', 's2', '2026-11-05T10:00:00.000Z');
+    ev('I-003', 's2', '2026-11-06T10:00:00.000Z');
+    expect(hereFor(db, `${homedir()}/code/trailwatch`)).toMatchObject({ idea: { id: 'I-001', step: 'decided', detail: 'call I-001' }, others: 0 });
+    expect(hereFor(db, `${homedir()}/code`)).toMatchObject({ idea: { id: 'I-003' }, others: 2 });
+    expect(hereFor(db, homedir())).toEqual({ idea: null, others: 0 });
+    expect(hereFor(db, '/elsewhere')).toEqual({ idea: null, others: 0 });
+  });
+});
+
+describe('plans approved in plan mode', () => {
+  const planned = (id: string) => db.prepare("SELECT payload, excerpt, origin FROM events WHERE type = 'planned' AND idea_id = ?").all(id) as { payload: string; excerpt: string; origin: string }[];
+
+  it('records a plan on the idea its marker names, once per session, with secrets redacted', () => {
+    const plan = '<!-- scintle:idea=I-002@v3 -->\n# Ship the chord drills\nUse token ghp_Zx9Yw8Vu7Ts6Rq5Po4Nm3Lk2Ji1Hg0Fe9Dc8B for the API.';
+    expect(recordPlan(db, 's1', plan)).toEqual({ id: 'I-002', title: 'Chord change trainer' });
+    expect(recordPlan(db, 's1', plan)).toEqual({ id: 'I-002', title: 'Chord change trainer' });
+    const rows = planned('I-002');
+    expect(rows).toHaveLength(1);
+    expect(JSON.parse(rows[0]?.payload ?? '{}')).toEqual({ plan: 'Ship the chord drills', briefVersion: 3 });
+    expect(rows[0]?.excerpt).not.toContain('ghp_');
+  });
+
+  it('records a plan that names exactly one idea, and nothing for one that names none or several', () => {
+    expect(recordPlan(db, 's2', '# Plan\nBuild the trailwatch alert poller first.')).toMatchObject({ id: 'I-001' });
+    expect(recordPlan(db, 's3', '# Plan\nRefactor the settings page.')).toBeUndefined();
+    expect(recordPlan(db, 's4', '# Plan\nMerge trailwatch into the async status digest.')).toBeUndefined();
+  });
+});
+
+describe('what reading caught', () => {
+  it('lists inferred events recorded since a time, optionally for one session', () => {
+    const at = (iso: string, id: number) => db.prepare('UPDATE events SET created_at = ? WHERE id = ?').run(iso, id);
+    const a = addEvent(db, { ideaId: 'I-001', type: 'decided', ts: '2026-11-10T10:00:00.000Z', origin: 'inferred', confidence: 0.9, payload: { decision: 'Fridays' }, sessionId: 'sA' });
+    const b = addEvent(db, { ideaId: 'I-002', type: 'tried', ts: '2026-11-10T10:00:00.000Z', origin: 'inferred', confidence: 0.9, payload: { approach: 'a metronome', outcome: 'kept' }, sessionId: 'sB' });
+    const c = addEvent(db, { ideaId: 'I-002', type: 'decided', ts: '2026-11-10T10:00:00.000Z', origin: 'user', payload: { decision: 'by hand' }, sessionId: 'sB' });
+    at('2026-11-10T10:00:00.000Z', a); at('2026-11-10T11:00:00.000Z', b); at('2026-11-10T11:00:00.000Z', c);
+    expect(caughtSince(db, '2026-11-10T09:00:00.000Z').map((x) => x.id)).toEqual(['I-001', 'I-002']);
+    expect(caughtSince(db, '2026-11-10T10:30:00.000Z')).toEqual([{ id: 'I-002', title: 'Chord change trainer', type: 'tried', detail: 'a metronome' }]);
+    expect(caughtSince(db, '2026-11-10T09:00:00.000Z', 'sA').map((x) => x.id)).toEqual(['I-001']);
   });
 });

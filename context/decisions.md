@@ -440,3 +440,49 @@ Research: `~/Workspace/reports/Privacy first telemetry for Scintle.md`.
 **Cost:**
 - It only works when Claude has read the idea's history in that conversation.
 - Its judgment is the model's, so a miss stays possible; the record it shows can't be wrong.
+
+## D34 · 2026-11-25 · Where you left off: a band at session start
+
+**Decision:**
+- When a session starts, the companion asks the server for the folder (`POST /api/here`) and shows one row above the prompt.
+- **Which idea it shows:**
+  - A folder one idea dominates (60%+ of the events from sessions and documents there or below) is that idea's: "Where you left off".
+  - Otherwise it's an umbrella folder, and the row shows the idea last worked on in a real session there: "Last here".
+  - Dropped and evolved ideas never show. The home folder never shows.
+- **The row:** the idea's title, its latest step and detail, and its age, then:
+  - **Pick up**, which puts "Let's pick up <idea> (I-xxx) where I left off." in the prompt box;
+  - **↗ Board**;
+  - **×** to dismiss.
+- It goes away at the first prompt. It's silent when the companion is off or reading isn't allowed.
+
+**Why:**
+- Returning to a project is when people forget most. Showing the last step, with one click back in, makes Scintle greet you rather than wait to be opened.
+- Pick up only fills the prompt; sending it is the person's choice. The companion's pointer then gives Claude the history.
+- On the owner's board (2026-11-25):
+  - `~/Workspace/vibesenpai` → vibesenpai;
+  - `~/Workspace/scintle` → Scintle (through its documents only);
+  - `~/Workspace` → "last here", with 12 others;
+  - `~/Workspace/reports` (only documents, no owner) → nothing.
+- Session folders are stored redacted, with home as `~`, so the lookup tries both forms. Missing this matched nothing at first.
+
+**Cost:**
+- A folder's owner is a guess from history. A new project with little history shows nothing until it has some.
+
+## D35 · 2026-11-25 · Caught as it lands, and plans recorded on approval
+
+**Decision:**
+- Reading still runs in batches: at session end, at a size threshold, or after 30 idle minutes (D9 cost).
+- The companion shows each batch's results above the prompt:
+  - **"Caught from this chat":** a local check each minute against `POST /api/caught` (inferred events by `created_at`, this session).
+  - **"Since last time":** at session start, everything recorded since the previous session.
+- A plan approved through ExitPlanMode is recorded on its idea at once (`POST /api/plan-done`):
+  - **Which idea:** the brief's marker, or else exactly one idea the plan names. Nothing when it names none or several.
+  - **Once:** once per idea and session, redacted. The return path (`linkPlans`) skips a plan the companion already recorded.
+
+**Why:**
+- "Caught live" after every turn would mean reading every turn, many more model calls on the person's plan. Showing batches as they land costs nothing.
+- Plans made without `/scintle:plan` were never recorded. Recording on approval closes the loop while the person is looking.
+
+**Cost:**
+- "Caught from this chat" appears only when a batch lands, often after the session has ended, so most catches show as "Since last time".
+- The approved plan is read from the tool's result (this build), with the input as a fallback for older builds.

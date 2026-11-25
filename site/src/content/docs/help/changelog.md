@@ -5,7 +5,7 @@ description: What changed in each Scintle release.
 
 ## 0.1.3
 
-- Two commands: `/scintle` and `/scintle:plan`. The rest are words after `/scintle`: `add`, `sync`, `stop`, `companion`, `telemetry`, `forget` (they were `/scintle:add` and so on).
+- Two commands: `/scintle` and `/scintle:plan` (`/scintle:dashboard` stands in for `/scintle` where Claude Code doesn't load mods). The rest are words after `/scintle`: `add`, `sync`, `stop`, `companion`, `telemetry`, `forget` (they were `/scintle:add` and so on).
 - `/scintle:plan` on its own opens a picker of your ideas.
 - The Claude Code companion ships in the plugin, on by default: Claude can look up an idea you name, a line under your prompt shows what it found, and it warns when you're about to repeat something you dropped. `/scintle companion off` turns it off.
 - Usage sharing asks on a later day, not at first run, and says which features were used.

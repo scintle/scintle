@@ -76,3 +76,48 @@ test('/scintle:plan with an idea runs as written', async ($, on) => {
   const r = await $.command.run({ command: 'scintle:plan', args: 'I-002' })
   expect(r.text).toBe('brief for I-002')
 })
+
+const BAND = { plugin: 'scintle', component: 'AbovePrompt', props: { bodyColumns: 120 } } as const
+const HERE = { id: 'I-002', title: 'Trail alerts', stage: 'building', step: 'decided', detail: 'push notifications only', at: '2026-11-22T10:00:00.000Z', others: 0 }
+
+test('a session in a known folder starts with where you left off, and a way back in', async ($, on) => {
+  on('state.get', (_, e) => ({ value: { value: (e as { key: string }).key === 'here' ? HERE : undefined, version: 1 } }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine band' }))
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...BAND, surface })
+    expect(await ui.find({ type: 'Text', text: /Where you left off/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Text', text: /“push notifications only”/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Button', key: 'pickup' })).toBeTruthy()
+    await ui.unmount()
+  }
+})
+
+test('the band says "last here" in a folder shared by several ideas, and nothing once dismissed', async ($, on) => {
+  let value: unknown = { ...HERE, others: 4 }
+  on('state.get', (_, e) => ({ value: { value: (e as { key: string }).key === 'here' ? value : undefined, version: 1 } }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine band' }))
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Last here/ })).toBeTruthy()
+  await ui.unmount()
+  value = null
+  const quiet = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await quiet.find({ type: 'Button', key: 'pickup' })).toBeUndefined()
+  await quiet.unmount()
+})
+
+test('what reading caught shows above the prompt, beside where you left off', async ($, on) => {
+  const got = { lead: 'Since last time', items: [
+    { id: 'I-009', title: 'Ferry delay map', type: 'born', detail: '' },
+    { id: 'I-002', title: 'Trail alerts', type: 'decided', detail: 'fridays' },
+  ] }
+  on('state.get', (_, e) => {
+    const key = (e as { key: string }).key
+    return { value: { value: key === 'here' ? HERE : key === 'caught' ? got : undefined, version: 1 } }
+  })
+  on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine band' }))
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /new idea “Ferry delay map” · a decision on Trail alerts/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Button', key: 'caught-see' })).toBeTruthy()
+  expect(await ui.find({ type: 'Button', key: 'pickup' })).toBeTruthy()
+  await ui.unmount()
+})

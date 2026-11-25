@@ -16,6 +16,13 @@ export type Fact = { id: string; title: string; text: string; quote: string; tai
 export type PickIdea = { id: string; title: string; stage: string; ended: string | null; problem: string; moved: string; last: string }
 export type Picker = { q: string; closed: boolean; ideas: PickIdea[] }
 
+/** Where you left off in this session's folder (D34). `others` > 0: an umbrella folder, so "last here". */
+export type Here = { id: string; title: string; stage: string; step: string; detail: string; at: string; others: number }
+
+/** What reading recorded, for the band: since the last session, or from this chat (D35). */
+export type CaughtItem = { id: string; title: string; type: string; detail: string }
+export type CaughtBand = { lead: string; items: CaughtItem[] }
+
 declare module 'claude-code' {
   interface PluginState {
     scintle: {
@@ -23,6 +30,10 @@ declare module 'claude-code' {
       facts: Record<string, Fact[]>
       /** The /scintle:plan picker: what is typed, whether closed ideas show, and the list. */
       picker: Picker
+      /** The band above the prompt at session start, until the first prompt or a dismissal. */
+      here: Here | null
+      /** What reading just recorded, shown above the prompt until dismissed or the next one replaces it. */
+      caught: CaughtBand | null
     }
   }
 }

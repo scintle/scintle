@@ -1,5 +1,6 @@
 ---
-name: scintle
+name: dashboard
+# /scintle itself is the companion's command (hooks/companion.tsx); this is the same thing for sessions where mods don't load.
 description: Open your Scintle idea board, or run one of its commands (add, sync, stop, companion, telemetry, forget)
 argument-hint: "[add | sync | stop | companion | telemetry | forget]"
 # Only the person opens the board; Claude never does it on its own.

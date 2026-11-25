@@ -53,7 +53,9 @@ export function linkPlans(db: Db, sessionId: string): number {
   let added = 0;
   for (const f of findPlans(turns)) {
     if (getIdea(db, f.ideaId) === undefined) continue;
-    const seen = db.prepare("SELECT 1 FROM events WHERE type = 'planned' AND session_id = ? AND turn_seq = ?").get(sessionId, f.turn.seq);
+    // The companion may have recorded this plan as it was approved (D35), before the turn was known.
+    const seen = db.prepare("SELECT 1 FROM events WHERE type = 'planned' AND session_id = ? AND (turn_seq = ? OR (idea_id = ? AND turn_seq IS NULL))")
+      .get(sessionId, f.turn.seq, f.ideaId);
     if (seen !== undefined) continue;
     const title = /^#+\s*(.+)$/m.exec(f.plan)?.[1] ?? f.plan.slice(0, 120);
     addEvent(db, {

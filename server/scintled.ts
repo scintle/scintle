@@ -16,7 +16,7 @@ import { saveBrief } from './brief.ts';
 import { startResearch } from './jobs/research.ts';
 import { dataDir } from './lib/config.ts';
 import { writeAtomic, writeJson } from './lib/files.ts';
-import { contextFor, deadEnd, historyOf, ideaCard, pickerIdeas, planInNewSession, searchIdeas } from './handoff.ts';
+import { caughtSince, contextFor, deadEnd, hereFor, historyOf, ideaCard, pickerIdeas, planInNewSession, recordPlan, searchIdeas } from './handoff.ts';
 import { diagnostics } from './diagnostics.ts';
 import { markUsed, maybePing, noteBoardOpen, setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
 import type { Feature } from './telemetry-schema.ts';
@@ -151,6 +151,9 @@ const routes: [string, RegExp, Handler][] = [
   ['POST', /^\/api\/context$/, ({ b }) => !companionOn(db) || !consented(db) ? { ideas: [], context: '' } : contextFor(db, str(b['text']).slice(0, 20_000), Array.isArray(b['skip']) ? b['skip'].map(String) : [])],
   ['POST', /^\/api\/search$/, ({ b }) => searchIdeas(db, str(b['query']).slice(0, 500))],
   ['GET', /^\/api\/card\/(I-\d+)$/, ({ m }) => ideaCard(db, m[1] as string) ?? { ok: false, error: 'no such idea' }],
+  ['POST', /^\/api\/here$/, ({ b }) => (companionOn(db) && consented(db) ? hereFor(db, str(b['cwd'])) : { idea: null, others: 0 })],
+  ['POST', /^\/api\/caught$/, ({ b }) => ({ caught: companionOn(db) && consented(db) ? caughtSince(db, str(b['since']), str(b['session'])) : [] })],
+  ['POST', /^\/api\/plan-done$/, ({ b }) => ({ idea: companionOn(db) && consented(db) ? recordPlan(db, str(b['session']), str(b['plan']).slice(0, 200_000)) ?? null : null })],
   ['GET', /^\/api\/picker$/, () => ({ ideas: pickerIdeas(db) })],
   ['GET', /^\/api\/dead-end\/(\d+)$/, ({ m }) => deadEnd(db, Number(m[1])) ?? { ok: false, error: 'not a dropped approach or idea' }],
   ['GET', /^\/api\/history\/(I-\d+)$/, ({ m }) => ({ text: historyOf(db, m[1] as string) ?? null })],
@@ -253,7 +256,7 @@ const server = createServer(async (req, res) => {
       const out = await handle({ b: req.method === 'POST' ? await body(req) : {}, m });
       const used = USED_BY.find(([r]) => r.test(url.split('?')[0] ?? ''))?.[1];
       if (used !== undefined && (out as { ok?: boolean } | undefined)?.ok !== false) markUsed(used);
-      if (req.method === 'POST' && !/\/(hook|brief|ask|context|search|plan-session)$/.test(url)) changed();
+      if (req.method === 'POST' && !/\/(hook|brief|ask|context|search|plan-session|here|caught|used)$/.test(url)) changed();
       return send(res, 200, out);
     } catch (e) {
       return send(res, 400, { ok: false, error: (e as Error).message });

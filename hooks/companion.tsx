@@ -2,7 +2,7 @@
 // idea's history, puts one line under the prompt with the most interesting thing about it and a button to the board.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import type { CardEvent, Fact, IdeaCard, PickIdea, Pointer } from '../types/companion'
+import type { CardEvent, CaughtBand, CaughtItem, Fact, Here, IdeaCard, PickIdea, Pointer } from '../types/companion'
 
 type Match = { ideas: Pointer[]; context: string }
 
@@ -11,6 +11,44 @@ const MARK = '✦ Scintle'
 /** The /scintle:plan picker's state. */
 const picker = atom({ plugin: 'scintle', key: 'picker' } as const, { q: '', closed: false, ideas: [] as PickIdea[] })
 const PICKER = 'scintle-plan'
+/** Where you left off, shown above the prompt when a session starts in a folder Scintle knows (D34). */
+const here = atom({ plugin: 'scintle', key: 'here' } as const, null as Here | null)
+/** What reading recorded since the last session, or from this chat. */
+const caught = atom({ plugin: 'scintle', key: 'caught' } as const, null as CaughtBand | null)
+const SEEN = 'caughtSeen'
+
+/** "new idea “Ferry delay map” · a pivot on Standup bot · +2 more" */
+function caughtLine(items: readonly CaughtItem[]): string {
+  const born = items.filter(i => i.type === 'born')
+  const moves = items.filter(i => ['pivoted', 'spawned', 'merged', 'dropped', 'released', 'parked'].includes(i.type))
+  const decided = items.filter(i => i.type === 'decided')
+  const parts = [
+    ...born.map(i => `new idea “${i.title}”`),
+    ...moves.map(i => `${i.type} ${i.title}`),
+    ...(decided.length > 0 ? [`${decided.length === 1 ? 'a decision' : `${decided.length} decisions`} on ${[...new Set(decided.map(i => i.title))].join(', ')}`] : []),
+  ]
+  const rest = items.length - born.length - moves.length - decided.length
+  if (rest > 0) parts.push(`${rest} more update${rest === 1 ? '' : 's'}`)
+  return parts.length > 2 ? `${parts.slice(0, 2).join(' · ')} · +${parts.length - 2} more` : parts.join(' · ')
+}
+
+/** Shows what reading recorded since `since`; for this chat only when `session` is given. Returns whether anything was. */
+async function showCaught($: EngineInterface, lead: string, since: string, session = ''): Promise<boolean> {
+  const r = (await call($, '/api/caught', { since, session })) as { caught: CaughtItem[] } | null
+  if (!r || r.caught.length === 0) return false
+  await update($, caught, () => ({ lead, items: r.caught }))
+  return true
+}
+
+let sessionId = ''
+let checkedAt = ''
+let watching = false
+
+const DID: Record<string, string> = {
+  decided: 'decided', tried: 'tried', researched: 'researched', planned: 'planned', building: 'started building',
+  released: 'released', refined: 'refined', narrowed: 'narrowed', widened: 'widened', attached: 'attached',
+  parked: 'parked', revived: 'revived', resumed: 'resumed', renamed: 'renamed', pivoted: 'pivoted', spawned: 'spun off',
+}
 const STAGE: Record<string, { label: string; color: string }> = {
   seed: { label: 'Seed', color: '#8a90a3' }, exploring: { label: 'Exploring', color: '#4f9dff' },
   planned: { label: 'Planned', color: '#9d8cf5' }, building: { label: 'Building', color: '#f07a45' },
@@ -45,7 +83,7 @@ async function planPicked($: EngineInterface, id: string): Promise<void> {
 const facts = atom({ plugin: 'scintle', key: 'facts' } as const, {} as Record<string, Fact[]>)
 
 // The board's dark tokens (web/src/styles.css).
-const C = { ink: '#e2e2eb', muted: '#9ba1b4', faint: '#626778', rule: '#2c2f3b', accent: '#6467ff', ai: '#9d8cf5', warn: '#f5a623' }
+const C = { ink: '#e2e2eb', muted: '#9ba1b4', faint: '#626778', rule: '#2c2f3b', accent: '#6467ff', ai: '#9d8cf5', warn: '#f5a623', good: '#4edea3' }
 const ENDED: Record<string, string> = {
   released: 'released', pivoted: 'pivoted', merged: 'merged', 'not-interested': 'not interested',
   crowded: 'crowded market', 'no-demand': 'no real demand', 'not-feasible': 'not feasible', other: 'other',
@@ -165,6 +203,16 @@ async function call($: EngineInterface, path: string, body?: unknown): Promise<u
 const OFFLINE = 'Scintle is not running. The user can start it with /scintle.'
 
 export const register: Register = on => {
+  // `/scintle [word]`: the same CLI the /scintle:dashboard skill runs, in the session's folder (for `add`).
+  on('command.run', { command: 'scintle' }, async ($, e) => {
+    const words = e.args.trim() === '' ? [] : e.args.trim().split(/\s+/)
+    const r = await $.process.run(['node', `${$.plugin.root}/server/run.mjs`, 'slash', ...words], {
+      cwd: await $.session.cwd(), env: { NODE_NO_WARNINGS: '1' }, timeoutMs: 30_000,
+    }).catch(() => null)
+    const out = r?.stdout.trim() ?? ''
+    return { text: r !== null && r.exitCode === 0 && out !== '' ? out : 'Scintle needs Node.js 22.13 or newer on your PATH.' }
+  })
+
   // /scintle:plan with no idea: a picker, so nobody has to remember an ID. With one, the command runs as written.
   on('command.run', { command: 'scintle:plan' }, async ($, e, next) => {
     if (e.args.trim() !== '') return next(e)
@@ -241,6 +289,47 @@ export const register: Register = on => {
     )
   })
 
+  // At session start, one row above the prompt: where you left off in this folder, and a way straight back in.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const band = await read($, here)
+    const got = await read($, caught)
+    if ((band === null && got === null) || e.props.hasSurvey) return next(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const caughtRow = got === null ? null : (
+      <Box gap={2} key="caught">
+        <Text><Text color={C.good} bold>✦ </Text><Text color={C.faint}>{got.lead}: </Text><Text color={C.ink}>{caughtLine(got.items)}</Text></Text>
+        <Button plain key="caught-see" label="See it on the board" onPress={() => openBoard($, got.items[got.items.length - 1]?.id ?? '')}>
+          <Text backgroundColor={C.good} color="#0c0e14" bold>{' See '}</Text>
+        </Button>
+        <Button plain dimColor key="caught-dismiss" label="Dismiss" onPress={() => update($, caught, () => null)}><Text color={C.faint}>×</Text></Button>
+      </Box>
+    )
+    if (band === null) return caughtRow as JSX.Element
+    const pickUp = async (): Promise<void> => {
+      await update($, here, () => null)
+      await $.prompt.fill({ text: `Let's pick up ${band.title} (${band.id}) where I left off.` })
+    }
+    const lead = band.others > 0 ? 'Last here' : 'Where you left off'
+    const did = DID[band.step] ?? band.step
+    const room = Math.max(20, ((e.props as { bodyColumns?: number }).bodyColumns ?? 100) - band.title.length - did.length - 50)
+    const hereRow = (
+      <Box gap={2} key="here">
+        <Text>
+          <Text color={C.ai} bold>✦ </Text><Text color={C.faint}>{lead}: </Text><Text color={C.ink} bold>{band.title}</Text>
+          <Text color={C.muted}> · {did}</Text>
+          {band.detail ? <Text color={C.ink} italic> “{clip(band.detail, room)}”</Text> : ''}
+          {band.at ? <Text color={C.faint}> · {short(band.at)}</Text> : ''}
+        </Text>
+        <Button plain key="pickup" label={`Pick up ${band.title}`} onPress={pickUp}>
+          <Text backgroundColor={C.accent} color="#ffffff" bold>{' Pick up '}</Text>
+        </Button>
+        <Button plain dimColor key="board" label={`Open ${band.title} on the board`} onPress={() => openBoard($, band.id)}><Text color={C.muted}>↗ Board</Text></Button>
+        <Button plain dimColor key="dismiss" label="Dismiss" onPress={() => update($, here, () => null)}><Text color={C.faint}>×</Text></Button>
+      </Box>
+    )
+    return caughtRow === null ? hereRow : <Box flexDirection="column">{hereRow}{caughtRow}</Box>
+  })
+
   // Under a prompt whose idea Claude read: the most interesting thing about it, and the way to the dashboard.
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
     const found = (await read($, facts))[e.props.text]
@@ -281,6 +370,12 @@ export const register: Register = on => {
       if (state === null) await $.clock.sleep(500)
     }
     enabled = state?.on ?? true
+    // `/scintle` with no prefix: a plugin skill is always listed as scintle:<name>, a mod's command is not.
+    await $.command.register({
+      name: 'scintle',
+      description: 'Open your Scintle idea board, or: add, sync, stop, companion, telemetry, forget',
+      argumentHint: '[add | sync | stop | companion | telemetry | forget]',
+    })
     if (!enabled) return result
     await $.tool.register({
       name: 'search_ideas',
@@ -297,6 +392,27 @@ export const register: Register = on => {
       description: "Show the user that what is being proposed or planned repeats something they already tried and dropped, from their Scintle board. Pass the [#id] that idea_history printed next to a dropped approach or idea. Call it only for a real repeat, not for a related topic, and at most once per id in a conversation.",
       inputSchema: { type: 'object', properties: { event_id: { type: 'integer', minimum: 1 } }, required: ['event_id'] },
     })
+    const found = (await call($, '/api/here', { cwd: e.cwd })) as { idea: Omit<Here, 'others'> | null; others: number } | null
+    // Not `h`: JSX compiles to calls of the global `h`.
+    await update($, here, () => (found?.idea ? { ...found.idea, others: found.others } : null))
+    // What reading caught since the last session; and from now on, what it catches from this one.
+    sessionId = await $.session.id()
+    const now = new Date().toISOString()
+    const seen = await $.store.get(SEEN)
+    await update($, caught, () => null)
+    if (typeof seen === 'string') await showCaught($, 'Since last time', seen)
+    await $.store.set(SEEN, now)
+    checkedAt = now
+    if (!watching) {
+      watching = true
+      // A local request a minute: reading lands in batches, so this is when "caught from this chat" shows up.
+      $.clock.every(60_000, async () => {
+        if (!enabled) return
+        const at = new Date().toISOString()
+        if (await showCaught($, 'Caught from this chat', checkedAt, sessionId)) await $.store.set(SEEN, at)
+        checkedAt = at
+      })
+    }
     return result
   })
 
@@ -344,8 +460,25 @@ export const register: Register = on => {
     return { result: `Shown to the user under their prompt: ${same ? `the idea ${d.title} was dropped` : `"${d.what}" was tried and dropped`} on ${d.day}${d.why ? ` (${d.why})` : ''}. Say so in your answer.` }
   })
 
+  // A plan approved in plan mode: recorded on its idea now, not when the session is next read (D35).
+  on('tool.call', { tool: 'ExitPlanMode' }, async ($, e, next) => {
+    const r = await next(e)
+    // The approved plan comes back on the result (with any edits the person made); older builds put it on the input.
+    const out = (r as { result?: { plan?: unknown } }).result
+    const plan = typeof out?.plan === 'string' ? out.plan : (e as { plan?: unknown }).plan
+    if (!enabled || 'deny' in r || (r as { isError?: boolean }).isError === true || typeof plan !== 'string' || plan.trim() === '') return r
+    const done = (await call($, '/api/plan-done', { session: sessionId || await $.session.id(), plan })) as { idea: { id: string; title: string } | null } | null
+    if (done?.idea && lastPrompt !== '') {
+      const f: Fact = { id: done.idea.id, title: done.idea.title, text: 'plan recorded on the board', quote: '', tail: '', cta: 'See it' }
+      await update($, facts, map => ({ ...map, [lastPrompt]: [...(map[lastPrompt] ?? []).filter(x => x.id !== f.id || x.warn), f].slice(-3) }))
+    }
+    return r
+  })
+
   on('prompt.submit', async ($, e, next) => {
-    if (e.isMeta || e.command || e.origin.kind !== 'composer' || e.text.trim().startsWith('/')) return next(e)
+    if (e.isMeta || e.origin.kind !== 'composer') return next(e)
+    if ((await read($, here)) !== null) await update($, here, () => null)
+    if (e.command || e.text.trim().startsWith('/')) return next(e)
     lastPrompt = e.text
     const m = (await call($, '/api/context', { text: e.text, skip: [...pointed] })) as Match | null
     if (!m || m.ideas.length === 0) return next(e)

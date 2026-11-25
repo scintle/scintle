@@ -7,6 +7,8 @@ description: Every Scintle slash command and terminal command.
 
 Two commands. Everything else is a word after `/scintle`.
 
+Where Claude Code doesn't load Scintle's in-chat part (a folder you haven't trusted yet, a policy that blocks it, or `--safe-mode`), use `/scintle:dashboard` in place of `/scintle`: it takes the same words.
+
 | Command | What it does |
 |---|---|
 | `/scintle` | Starts the local server if needed and opens the board. |

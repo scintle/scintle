@@ -98,7 +98,8 @@ scintle/
   context/            AI-facing specs and plans (see below)
   .claude-plugin/     plugin.json, marketplace.json
   hooks/hooks.json
-  skills/scintle/     SKILL.md: /scintle itself (a skill, so it runs bare, not as /scintle:scintle)
+  skills/dashboard/   SKILL.md: /scintle:dashboard, the fallback for /scintle where mods don't load
+  hooks/companion.tsx the companion mod; it also registers /scintle itself (a mod command has no prefix)
   commands/           plan.md, stop.md, …
   server/             strip-types TS, zero runtime deps
     ingest/           harness parsers → skeleton
