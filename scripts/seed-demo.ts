@@ -29,7 +29,7 @@ ev(trail, '2026-09-18', 'released', 'it is live on the app store', {}, 'you', 'u
 
 // A standup bot that pivoted into an async digest.
 const standup = born('2026-07-06', 'Standup bot', 'Remote teams sit through status meetings', 'our standups are 30 minutes of people reading tickets aloud');
-ev(standup, '2026-07-14', 'tried', 'a Slack bot that asks three questions; nobody answered it after day two');
+ev(standup, '2026-07-14', 'tried', 'a Slack bot that asks three questions; nobody answered it after day two', { approach: 'a Slack bot that asks three standup questions each morning', outcome: 'dropped', why: 'nobody answered it after day two' });
 const digest = born('2026-07-28', 'Async status digest', 'Managers can’t see progress without asking', 'forget the bot, managers just want a weekly digest built from the commits');
 const piv = ev(standup, '2026-07-28', 'pivoted', 'forget the bot, managers just want a weekly digest built from the commits', { to: digest });
 addLink(db, standup, digest, 'pivot', piv);
@@ -75,6 +75,13 @@ ev(pod, '2026-09-23', 'dropped', 'not for me', { reason: 'not-interested' }, 'yo
 born('2026-11-12', 'Pair focus timer', 'Pairs lose focus without shared breaks', 'a timer both people see when pairing');
 const ferry = born('2026-11-19', 'Ferry delay map', 'Commuters find out about ferry delays at the pier', 'the ferry app only says delayed after you get there', 'document');
 ev(ferry, '2026-11-21', 'researched', 'report: the operator has a public vessel-position feed', {}, 'document');
+
+// A project folder for the Claude Code demo: Weekly Pulse was worked on there (DEMO_CWD, e.g. /tmp/weekly-pulse).
+const demoCwd = process.env['DEMO_CWD'];
+if (demoCwd) {
+  db.prepare("INSERT INTO sessions (id, harness, parser, parser_match, transcript_path, started_at, cwd) VALUES ('demo-weekly-pulse', 'claude-code', 'demo', 'exact', '/dev/null', '2026-09-02T09:00:00.000Z', ?)").run(demoCwd);
+  db.prepare("UPDATE events SET session_id = 'demo-weekly-pulse' WHERE idea_id = ?").run(digest);
+}
 
 // Simple monogram logos, so the demo never asks a model to draw them.
 const COLOURS = ['#4f9dff', '#f07a45', '#4edea3', '#e0b020', '#f062b8', '#9d8cf5', '#ff5a5f', '#8590a8'];

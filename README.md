@@ -8,7 +8,7 @@ narrowed, pivoted, parked, released, dropped. Nothing to maintain; you correct i
 
 **Docs: [scintle.github.io/scintle](https://scintle.github.io/scintle/)**
 
-![Replaying five months of made-up ideas on Scintle's board: each one born, renamed, spun off and dropped, with the words behind every step](docs/media/scintle-replay.gif)
+![In Claude Code: a session starts with where you left off; asking to bring back a Slack bot gets a warning that it was tried and dropped, and why; then the board opens on that idea](docs/media/scintle-in-chat.gif)
 
 ## Install
 
@@ -27,6 +27,12 @@ asks before running it. Then start a new Claude Code session and run `/scintle`.
 | `/scintle:plan` | Pick an idea and plan it with its full history (or `/scintle:plan I-007`). |
 
 `/scintle` also takes a word: `add` (read this folder's docs), `sync`, `stop`, `companion on|off`, `telemetry`, `forget`.
+
+## The board
+
+Every idea, with its history, on a board in your browser. Replay plays it back over time.
+
+![Replaying five months of made-up ideas on Scintle's board: each one born, renamed, spun off and dropped, with the words behind every step](docs/media/scintle-replay.gif)
 
 ## What it reads, stores and sends
 

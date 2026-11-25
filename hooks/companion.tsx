@@ -98,7 +98,12 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const DAY = 86_400_000
 const SHAPE = new Set(['renamed', 'narrowed', 'widened', 'pivoted'])
 
-const dateOf = (ts: string): string => { const d = new Date(ts); return `${MONTHS[d.getMonth()]} ${d.getDate()}` }
+// A bare date ("2026-07-14") is that calendar day; read as a time it is UTC midnight, the day before west of UTC.
+const dateOf = (ts: string): string => {
+  const day = /^\d{4}-\d{2}-\d{2}$/.exec(ts)
+  const d = new Date(day ? `${ts}T12:00:00` : ts)
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`
+}
 const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
 const str = (ev: CardEvent, k: string): string => (typeof ev.payload[k] === 'string' ? (ev.payload[k] as string) : '')
 
@@ -123,7 +128,7 @@ function factOf(c: IdeaCard, now = Date.now()): Fact {
   const decision = decisions.at(-1)
   if (decision) {
     const more = decisions.length > 1 ? ` · ${decisions.length} decisions on record` : ''
-    return { ...base, text: 'you decided ', quote: clip(str(decision, 'decision'), 60), tail: ` on ${dateOf(decision.ts)}${more}`, cta: 'See why' }
+    return { ...base, text: 'you decided ', quote: clip(str(decision, 'decision') || (decision.quote ?? ''), 60), tail: ` on ${dateOf(decision.ts)}${more}`, cta: 'See why' }
   }
   const ended = [...live].reverse().find(ev => ev.type === 'dropped' || ev.type === 'released')
   if (ended) {

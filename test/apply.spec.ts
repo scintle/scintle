@@ -114,7 +114,8 @@ describe('ended reasons', () => {
     expect(moveStage(db, 'I-001', 'dropped', '', 'not-interested').ok).toBe(true);
     expect(getIdea(db, 'I-001')).toMatchObject({ stage: 'dropped', resolution: 'not-interested' });
     expect(moveStage(db, 'I-001', 'parked', '', 'crowded').ok).toBe(false);
-    addEvent(db, { ideaId: 'I-001', type: 'revived', ts: '2026-11-25T10:00:00.000Z', origin: 'user' });
+    // After the drop, which moveStage stamped with the real clock: a fixed date here turned into a time bomb.
+    addEvent(db, { ideaId: 'I-001', type: 'revived', ts: new Date(Date.now() + 60_000).toISOString(), origin: 'user' });
     expect(getIdea(db, 'I-001')?.resolution).toBeNull();
     applyExtraction(db, 's', TURNS, x({ events: [{ idea: 'I-001', type: 'dropped', payload: { reason: 'not-interested' }, confidence: 0.9, seq: 3, quote: 'forget ideas' }] }));
     const inferred = liveEvents(db, 'I-001').find((e) => e.type === 'dropped' && e.origin === 'inferred');

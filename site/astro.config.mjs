@@ -25,8 +25,13 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/scintle/scintle' }],
       editLink: { baseUrl: 'https://github.com/scintle/scintle/edit/main/site/' },
       head: [
-        { tag: 'meta', attrs: { property: 'og:image', content: `${SITE}${BASE}/og.png` } },
+        // The share preview: public/og.jpg, rendered from og/og.html by og/render.mjs.
+        { tag: 'meta', attrs: { property: 'og:image', content: `${SITE}${BASE}/og.jpg` } },
+        { tag: 'meta', attrs: { property: 'og:image:width', content: '1280' } },
+        { tag: 'meta', attrs: { property: 'og:image:height', content: '640' } },
+        { tag: 'meta', attrs: { property: 'og:image:alt', content: 'Scintle: your AI chats, turned into a history of your ideas. A chat warns that an idea was already tried and dropped, and why.' } },
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: `${SITE}${BASE}/og.jpg` } },
         ...(UMAMI ? [{ tag: /** @type {const} */ ('script'), attrs: { defer: true, src: 'https://cloud.umami.is/script.js', 'data-website-id': UMAMI } }] : []),
       ],
       sidebar: [

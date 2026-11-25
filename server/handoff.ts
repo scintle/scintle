@@ -204,9 +204,11 @@ export function hereFor(db: Db, cwd: string): Here {
   if (pick === undefined) return { idea: null, others: 0 };
   const idea = db.prepare('SELECT id, title, stage FROM ideas WHERE id = ?').get(pick.id) as { id: string; title: string; stage: string };
   const last = db.prepare(
-    `SELECT type, payload, ts FROM events WHERE idea_id = ? AND state != 'removed' AND type != 'born' ORDER BY ts DESC LIMIT 1`,
-  ).get(pick.id) as { type: string; payload: string; ts: string } | undefined;
-  const step = last ? stepOf(last.type, last.payload) : { step: 'born', detail: '' };
+    `SELECT type, payload, quote, ts FROM events WHERE idea_id = ? AND state != 'removed' AND type != 'born' ORDER BY ts DESC LIMIT 1`,
+  ).get(pick.id) as { type: string; payload: string; quote: string | null; ts: string } | undefined;
+  const found = last ? stepOf(last.type, last.payload) : { step: 'born', detail: '' };
+  // An event with no detail of its own still has the words it came from.
+  const step = { ...found, detail: found.detail || (last?.quote ?? '').slice(0, 120) };
   return { idea: { ...idea, ...step, at: last?.ts ?? '' }, others: owner ? 0 : rows.length - 1 };
 }
 
