@@ -8,7 +8,7 @@ narrowed, pivoted, parked, released, dropped. Nothing to maintain; you correct i
 
 **Docs: [scintle.github.io/scintle](https://scintle.github.io/scintle/)**
 
-![In Claude Code: a session starts with where you left off; asking to bring back a Slack bot gets a warning that it was tried and dropped, and why; then the board opens on that idea](docs/media/scintle-in-chat.gif)
+![In Claude Code, on made-up ideas: someone half-remembers an idea about splitting money on group trips; Scintle finds it and Claude tells its story and where it was left; then the board opens on it and replays how two ideas merged into one](docs/media/scintle-story.gif)
 
 ## Install
 

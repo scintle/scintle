@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- With an idea open, Replay plays just that idea's story, and the replay feed shows even with an idea open.
+- The line under your prompt tells where an idea came from ("merged from …"), says "Pick it up" when you're coming back to one, and shows one line per story, not one for each parent.
+- Fixes: dates in warnings were a day early west of UTC; decisions recorded with only a quote showed no text in the band and the line.
+
 ## 0.1.3
 
 - Two commands: `/scintle` and `/scintle:plan` (`/scintle:dashboard` stands in for `/scintle` where Claude Code doesn't load mods). The rest are words after `/scintle`: `add`, `sync`, `stop`, `companion`, `telemetry`, `forget` (they were `/scintle:add` and so on).

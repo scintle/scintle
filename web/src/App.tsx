@@ -22,7 +22,7 @@ function rangeBounds(r: RangeChoice, nowIso: string | undefined): Range {
 import { Lineage, Overview } from './views/Lineage';
 
 export function App() {
-  const { snap, events, error, view, project, selected, dialog, setDialog, select, load, range, groups, reasons } = useStore();
+  const { snap, events, error, view, project, selected, dialog, setDialog, select, load, range, groups, reasons, reel } = useStore();
 
   useEffect(() => {
     void load();
@@ -94,7 +94,8 @@ export function App() {
             </>
           )}
         </div>
-        {idea ? <IdeaPanel key={idea.id} idea={idea} events={byIdea.get(idea.id) ?? []} /> : model && <Overview model={model} />}
+        {/* A replay's feed takes the panel, even with an idea open; closing it brings the idea back. */}
+        {reel && model ? <Overview model={model} /> : idea ? <IdeaPanel key={idea.id} idea={idea} events={byIdea.get(idea.id) ?? []} /> : model && <Overview model={model} />}
       </main>
       {dialog === 'new' && <NewIdeaDialog />}
       {dialog === 'cmd' && <CommandBar byIdea={byIdea} />}

@@ -97,6 +97,8 @@ const LABEL: Record<string, string> = {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAY = 86_400_000
 const SHAPE = new Set(['renamed', 'narrowed', 'widened', 'pivoted'])
+/** A prompt coming back to an idea: its button then says "Pick it up". */
+const RETURNING = /\b(where (did )?i (leave|left)|left off|pick (it|this|that) (back )?up|get back to|come back to|resume|what (was|happened to) (it|that|the))\b/i
 
 // A bare date ("2026-07-14") is that calendar day; read as a time it is UTC midnight, the day before west of UTC.
 const dateOf = (ts: string): string => {
@@ -124,6 +126,14 @@ function factOf(c: IdeaCard, now = Date.now()): Fact {
     if (pivot) return { ...base, text: `${text}pivoted into `, quote: str(pivot, 'toTitle') || 'a new idea', tail: '', cta: 'See how' }
     if (c.formerly[0]) return { ...base, text: `${text}once called `, quote: c.formerly[0], tail: '', cta: 'See how' }
     return { ...base, text: `${text}narrowed since`, quote: '', tail: '', cta: 'See how' }
+  }
+  // Where it came from: an idea born of a merge, pivot or spin-off tells that story before any single decision.
+  const parents = c.from
+  if (parents.length > 0 && born) {
+    const first = parents[0] as { title: string; type: string }
+    const others = parents.slice(1).map(p => p.title)
+    const how = first.type === 'merge' ? 'merged from ' : first.type === 'spawn' ? 'spun off from ' : 'grew out of '
+    return { ...base, text: how, quote: first.title, tail: `${others.length > 0 ? ` and ${others.join(', ')}` : ''} on ${dateOf(born.ts)}`, cta: 'See how' }
   }
   const decision = decisions.at(-1)
   if (decision) {
@@ -438,8 +448,16 @@ export const register: Register = on => {
     // Claude judged the prompt to be about this idea: say so under the prompt, with the way to the dashboard.
     const c = (await call($, `/api/card/${id}`)) as IdeaCard | null
     if (c && 'title' in c && lastPrompt !== '') {
-      const f = factOf(c)
-      await update($, facts, map => ({ ...map, [lastPrompt]: [...(map[lastPrompt] ?? []).filter(x => x.id !== id || x.warn), f].slice(-3) }))
+      const fact = factOf(c)
+      const f = RETURNING.test(lastPrompt) ? { ...fact, cta: 'Pick it up' } : fact
+      // One line per story: an idea read alongside its parents gets the line; the parents, which live on in it, don't.
+      const parents = new Set(c.from.map(l => l.id))
+      const children = new Set(c.to.map(l => l.id))
+      await update($, facts, map => {
+        const now = (map[lastPrompt] ?? []).filter(x => x.warn || (x.id !== id && !parents.has(x.id)))
+        if (now.some(x => !x.warn && children.has(x.id))) return map
+        return { ...map, [lastPrompt]: [...now, f].slice(-3) }
+      })
       $.ui.toast(`${MARK} found ${c.title}`, { timeoutMs: 6000 })
     }
     return { result: r.text }

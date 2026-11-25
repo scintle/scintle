@@ -28,7 +28,7 @@ Click any idea to open its panel: its names over time, the problem it's solving 
 
 ### Replay and scrubbing
 
-Press play to replay your history: the right panel becomes a running feed of the main moments, bigger events in bigger type. Drag the strip under the canvas to scrub forward and back in time; the board shows what you knew at that moment.
+Press play to replay your history: the right panel becomes a running feed of the main moments, bigger events in bigger type. With an idea open, Replay plays just that idea's story: where it came from, how it changed and what it led to. Drag the strip under the canvas to scrub forward and back in time; the board shows what you knew at that moment.
 
 ### Filters
 

@@ -751,7 +751,12 @@ export class Lens {
 
   private beats(): { h: number; d: LIdea; e: LEv; key: boolean }[] {
     const out: { h: number; d: LIdea; e: LEv; key: boolean }[] = [];
-    for (const d of this.m.ideas) for (const e of d.events) out.push({ h: this.hrs(e.t), d, e, key: KEY_MOMENTS.has(e.label) });
+    // With an idea open, Replay tells its story: the idea and its lineage. Otherwise, the whole board.
+    const only = this.sel && this.byId.has(this.sel) ? this.lineage(this.sel) : null;
+    for (const d of this.m.ideas) {
+      if (only && !only.has(d.id)) continue;
+      for (const e of d.events) out.push({ h: this.hrs(e.t), d, e, key: KEY_MOMENTS.has(e.label) });
+    }
     return out.sort((x, y) => x.h - y.h || Number(y.key) - Number(x.key));
   }
 
