@@ -7,6 +7,7 @@ import { RESOLUTION_COLOR, RESOLUTION_LABEL, saidBy } from '../lib/derive';
 import type { Resolution } from '../lib/types';
 import { DateRange } from '../components/DateRange';
 import { useStore } from '../store';
+import { post } from '../lib/api';
 import { IdeaMark } from '../components/IdeaMark';
 
 const QUIET = new Set(['dormant', 'parked']);
@@ -16,6 +17,9 @@ const STATUS_COLOR: Record<string, string> = {
 };
 const ENDED = new Set(['merged', 'pivoted', 'dropped', 'released']);
 
+/** Tells the opt-in daily count this was used today; the server keeps it only if sharing is on. */
+const used = (feature: 'lineage' | 'replay'): void => void post('/api/used', { feature }).catch(() => undefined);
+
 export function Lineage({ mode, model, all }: { mode: 'river' | 'constellation'; model: Model; all: Model }) {
   const { selected, openEvent, select, snap } = useStore();
   const stage = useRef<HTMLDivElement | null>(null);
@@ -24,6 +28,7 @@ export function Lineage({ mode, model, all }: { mode: 'river' | 'constellation';
   const tip = useRef<HTMLDivElement | null>(null);
   const lens = useRef<Lens | null>(null);
   const [asOf, setAsOf] = useState<string | null>(null);
+  useEffect(() => used('lineage'), []);
   const [replaying, setReplaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const setReel = useStore((s) => s.setReel);
@@ -42,7 +47,7 @@ export function Lineage({ mode, model, all }: { mode: 'river' | 'constellation';
       if (at === null) setReel(null);
       else if (l.scrubbing) setReel(l.momentsUntil());
     };
-    l.onReplay = (on) => { setReplaying(on); setPaused(false); if (on) setReel([]); };
+    l.onReplay = (on) => { setReplaying(on); setPaused(false); if (on) { setReel([]); used('replay'); } };
     l.onPaused = setPaused;
     l.onCaption = (c) => { if (c) setReel((r) => [...r, c]); };
     lens.current = l;

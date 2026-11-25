@@ -31,6 +31,7 @@ Beside it: the logos drawn for your ideas, research reports you asked for, the s
   - research an idea, when you press **Research**.
 
   These calls have no tools, none of your MCP servers, settings or hooks, and can't ask for more. Saying no stops reading before the next call.
+- **Into your own Claude chats, through the companion.** When a prompt names one of your ideas, Scintle adds one line to it: the idea's name and ID, and that Claude can look up its history. If Claude does, the history becomes part of that chat, which goes to Anthropic like the rest of it. Nothing is added for a name mentioned only in a path or a quote. Turn it off with `/scintle companion off`.
 - **To the web, only when you press Research.** Research makes three calls, so the one that reads pages never sees your idea:
   1. A web search, with the idea's brief. Search words come from your idea.
   2. Reading the pages that search returned, and only those sites. This call isn't told your idea.
@@ -44,7 +45,7 @@ This documentation site counts page views with [Umami](https://umami.is), which 
 
 ## Deleting everything
 
-Run `/scintle:forget` in Claude Code, or delete the folder yourself:
+Run `/scintle forget` in Claude Code, or delete the folder yourself:
 
 ```sh
 rm -rf ~/.local/share/scintle

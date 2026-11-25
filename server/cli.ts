@@ -8,13 +8,13 @@ import { lineageReport } from './report.ts';
 import { buildBrief } from './brief.ts';
 import { linkPlans } from './returnpath.ts';
 import { ensure, postFromHook, request, running, stop } from './daemon.ts';
-import { purgeDeleted, setConsent } from './store/upkeep.ts';
+import { companionOn, consented, purgeDeleted, setCompanion, setConsent } from './store/upkeep.ts';
 import { discoverDocs, ingestDocs } from './ingest/docs.ts';
 import { execFile } from 'node:child_process';
 import { existsSync, rmSync } from 'node:fs';
 import { openDb, type Db } from './store/db.ts';
 import { resetInferred } from './store/ledger.ts';
-import { setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
+import { markUsed, setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
 
 const dbPath = (): string => join(dataDir(), 'scintle.db');
 const flag = (args: string[], name: string): string | undefined => {
@@ -47,7 +47,7 @@ function ingestAll(db: Db, dryRun: boolean): void {
 async function importCmd(args: string[]): Promise<void> {
   const dryRun = args.includes('--dry-run');
   if (!dryRun && (await running()) !== undefined) {
-    console.error('The Scintle server is running and extracts live sessions itself. Run /scintle:stop first, or this import may read the same session twice.');
+    console.error('The Scintle server is running and extracts live sessions itself. Run /scintle stop first, or this import may read the same session twice.');
     process.exitCode = 1;
     return;
   }
@@ -114,7 +114,7 @@ async function forgetCmd(args: string[]): Promise<void> {
     return;
   }
   if (!args.includes('--yes') && !args.includes('yes')) {
-    console.log(`This deletes ${dir}: every idea, its history and Scintle's settings. Your Claude Code sessions are not touched.\nTo delete, run /scintle:forget yes (or scintle forget --yes in a terminal).`);
+    console.log(`This deletes ${dir}: every idea, its history and Scintle's settings. Your Claude Code sessions are not touched.\nTo delete, run /scintle forget yes (or scintle forget --yes in a terminal).`);
     return;
   }
   await stop();
@@ -131,6 +131,18 @@ const WHY: Record<string, string> = {
   'no-endpoint': 'On, but this build has no collector address (only official releases send), so nothing is sent.',
 };
 
+/** `scintle companion [on|off|status]`: the in-chat companion (D32). */
+function companionCmd(args: string[]): void {
+  const db = openDb(dbPath());
+  const want = args[0];
+  if (want === 'on' || want === 'off') setCompanion(db, want === 'on');
+  else if (want !== undefined && want !== 'status') return void console.log('Use: /scintle companion on, off or status');
+  const on = companionOn(db);
+  console.log(on
+    ? `Companion on: name an idea in a chat and Claude can look up its history.${consented(db) ? '' : ' Starts once you allow reading on the board.'}`
+    : 'Companion off: Claude hears nothing about your ideas in chats.');
+}
+
 function telemetryCmd(args: string[]): void {
   const sub = args[0] ?? 'status';
   if (sub === 'enable' || sub === 'disable') setTelemetry(sub === 'enable');
@@ -146,7 +158,20 @@ function telemetryCmd(args: string[]): void {
   console.log('\nWhat each field means: https://scintle.github.io/scintle/trust/telemetry/');
 }
 
-const [cmd = '', ...rest] = process.argv.slice(2);
+/** What `/scintle <word>` accepts; nothing opens the board. */
+const SLASH = ['add', 'sync', 'stop', 'companion', 'telemetry', 'forget'] as const;
+
+const argv = process.argv.slice(2);
+// `/scintle [word …]` arrives as `slash …`: no word opens the board, a known word runs that command.
+if (argv[0] === 'slash') {
+  const word = (argv[1] ?? '').toLowerCase();
+  if (word !== '' && !(SLASH as readonly string[]).includes(word)) {
+    console.log(`Not a Scintle command: ${word}. Try /scintle, or /scintle ${SLASH.join(' | ')}.`);
+    process.exit(0);
+  }
+  argv.splice(0, 2, word === '' ? 'open' : word);
+}
+const [cmd = '', ...rest] = argv;
 switch (cmd) {
   case 'hook':
     await hookCmd();
@@ -176,11 +201,15 @@ switch (cmd) {
     break;
   case 'brief': {
     const b = buildBrief(openDb(dbPath()), (rest[0] ?? '').toUpperCase());
-    console.log(b?.body ?? `No idea ${rest[0] ?? ''}. Open the board with /scintle to find its id.`);
+    if (b !== undefined) markUsed('plan');
+    console.log(b?.body ?? (rest[0] ? `No idea ${rest[0]}. Run /scintle:plan alone to pick one.` : 'No idea named. Run /scintle:plan alone to pick one, or /scintle:plan I-007.'));
     break;
   }
   case 'import':
     await importCmd(rest);
+    break;
+  case 'companion':
+    companionCmd(rest);
     break;
   case 'telemetry':
     telemetryCmd(rest);

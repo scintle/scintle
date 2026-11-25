@@ -15,11 +15,11 @@ const WHY: Record<string, string> = {
   'no-endpoint': 'On, but this build has no collector address (only official releases send), so nothing leaves.',
 };
 
-/** The one-time question, shown after the first read was allowed. "No thanks" and closing are the same answer. */
+/** The one-time question, on a later day than the board's first, alone on screen. "No thanks" and closing are the same answer. */
 export function TelemetryAsk() {
   const { snap, act, setDialog } = useStore();
   const t = snap?.telemetry;
-  if (!snap?.consent || !t || t.blockedBy !== 'not-asked') return null;
+  if (!snap?.consent || !t?.askNow || snap.extracting !== null || snap.questions.length > 0) return null;
   const answer = (on: boolean): void => void act('/api/telemetry', { on }, on ? 'Thanks: one anonymous message a day' : 'Nothing will be sent');
   return (
     <div className="question telemetry-ask" role="region" aria-label="Usage sharing">

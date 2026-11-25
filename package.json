@@ -5,13 +5,16 @@
   "private": true,
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "knip",
     "check": "npm run typecheck && npm run lint && npm test",
-    "scintle": "node --experimental-strip-types server/cli.ts"
+    "scintle": "node --experimental-strip-types server/cli.ts",
+    "check:companion": "S=$(scripts/stage-plugin.sh) && claude plugin validate --strict \"$S\" && cp hooks/companion.test.tsx \"$S/hooks/\" && claude plugin test \"$S\""
   },
   "devDependencies": {
     "@types/node": "24.10.1",

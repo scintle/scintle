@@ -16,15 +16,16 @@ import { saveBrief } from './brief.ts';
 import { startResearch } from './jobs/research.ts';
 import { dataDir } from './lib/config.ts';
 import { writeAtomic, writeJson } from './lib/files.ts';
-import { contextFor, historyOf, ideaCard, planInNewSession, searchIdeas } from './handoff.ts';
+import { contextFor, deadEnd, historyOf, ideaCard, pickerIdeas, planInNewSession, searchIdeas } from './handoff.ts';
 import { diagnostics } from './diagnostics.ts';
-import { maybePing, setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
+import { markUsed, maybePing, noteBoardOpen, setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
+import type { Feature } from './telemetry-schema.ts';
 import { Live, waiting } from './live.ts';
 import { snapshot } from './state.ts';
 import { openDb } from './store/db.ts';
 import { reprojectAll } from './store/ledger.ts';
 import { addFolder, folders, listEarlierFolders, removeFolder } from './ingest/docs.ts';
-import { consented, purgeDeleted, setConsent, skipHistory } from './store/upkeep.ts';
+import { companionOn, consented, purgeDeleted, setCompanion, setConsent, skipHistory } from './store/upkeep.ts';
 import type { EventType } from './store/ledger.ts';
 
 const DIR = dataDir();
@@ -91,6 +92,17 @@ function serveStatic(res: ServerResponse, url: string): void {
   res.end(readFileSync(file));
 }
 
+/** Routes that count as using a feature, for the opt-in daily message (D26): yes or no, never how often. */
+const USED_BY: [RegExp, Feature][] = [
+  [/^\/api\/(ideas\/I-\d+\/(brief|plan-session)|brief\/I-\d+)$/, 'plan'],
+  [/^\/api\/ideas\/I-\d+\/research$/, 'research'],
+  [/^\/api\/ask$/, 'ask'],
+  [/^\/api\/(events\/\d+\/(confirm|remove|correct)|questions\/\d+\/answer|undo)$/, 'correct'],
+  [/^\/api\/ideas\/I-\d+\/(stage|rename)$/, 'triage'],
+  [/^\/api\/ideas$/, 'new_idea'],
+  [/^\/api\/(history\/I-\d+|search)$/, 'companion'],
+];
+
 type Handler = (p: { b: Record<string, unknown>; m: RegExpExecArray }) => unknown;
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
@@ -131,11 +143,16 @@ function folderList(): { path: string; docs: number }[] {
 }
 
 const routes: [string, RegExp, Handler][] = [
-  ['GET', /^\/api\/state$/, () => ({ ...snapshot(db), version, extracting: live.extracting ?? null, waiting: waiting(db), progress: live.progress, readError: live.lastError, consent: consented(db), logos: logos(), folders: folderList(), telemetry: telemetryStatus() })],
+  ['GET', /^\/api\/state$/, () => (consented(db) && (noteBoardOpen(), markUsed('board')), { ...snapshot(db), version, extracting: live.extracting ?? null, waiting: waiting(db), progress: live.progress, readError: live.lastError, consent: consented(db), logos: logos(), folders: folderList(), telemetry: telemetryStatus() })],
   // Read-only: what a prompt that mentions ideas gets attached (the companion mod's prompt.submit hook).
-  ['POST', /^\/api\/context$/, ({ b }) => contextFor(db, str(b['text']).slice(0, 20_000), Array.isArray(b['skip']) ? b['skip'].map(String) : [])],
+  ['GET', /^\/api\/companion$/, () => ({ on: companionOn(db) && consented(db) })],
+  ['POST', /^\/api\/companion$/, ({ b }) => { setCompanion(db, b['on'] === true); return { ok: true, on: companionOn(db) }; }],
+  // Off, or before reading was allowed: the companion points at nothing.
+  ['POST', /^\/api\/context$/, ({ b }) => !companionOn(db) || !consented(db) ? { ideas: [], context: '' } : contextFor(db, str(b['text']).slice(0, 20_000), Array.isArray(b['skip']) ? b['skip'].map(String) : [])],
   ['POST', /^\/api\/search$/, ({ b }) => searchIdeas(db, str(b['query']).slice(0, 500))],
   ['GET', /^\/api\/card\/(I-\d+)$/, ({ m }) => ideaCard(db, m[1] as string) ?? { ok: false, error: 'no such idea' }],
+  ['GET', /^\/api\/picker$/, () => ({ ideas: pickerIdeas(db) })],
+  ['GET', /^\/api\/dead-end\/(\d+)$/, ({ m }) => deadEnd(db, Number(m[1])) ?? { ok: false, error: 'not a dropped approach or idea' }],
   ['GET', /^\/api\/history\/(I-\d+)$/, ({ m }) => ({ text: historyOf(db, m[1] as string) ?? null })],
   ['POST', /^\/api\/ideas\/(I-\d+)\/plan-session$/, ({ m }) => planInNewSession(db, m[1] as string)],
   ['GET', /^\/api\/diagnostics$/, async () => ({ text: await diagnostics(db, live.lastError?.message ?? null) })],
@@ -150,6 +167,12 @@ const routes: [string, RegExp, Handler][] = [
     setConsent(db, true);
     if (mode === 'new-only') { live.rescan(); skipHistory(db); return { ok: true, sessions: 0 }; }
     return { ok: true, sessions: live.catchUp() };
+  }],
+  // What only the browser sees (a view, Replay); every other feature is marked by its route (USED_BY).
+  ['POST', /^\/api\/used$/, ({ b }) => {
+    const f = str(b['feature']);
+    if (f === 'lineage' || f === 'replay') markUsed(f);
+    return { ok: true };
   }],
   ['POST', /^\/api\/sync$/, () => ({ ok: true, sessions: live.catchUp() })],
   ['POST', /^\/api\/folders$/, ({ b }) => {
@@ -228,6 +251,8 @@ const server = createServer(async (req, res) => {
     if (m === null || method !== req.method) continue;
     try {
       const out = await handle({ b: req.method === 'POST' ? await body(req) : {}, m });
+      const used = USED_BY.find(([r]) => r.test(url.split('?')[0] ?? ''))?.[1];
+      if (used !== undefined && (out as { ok?: boolean } | undefined)?.ok !== false) markUsed(used);
       if (req.method === 'POST' && !/\/(hook|brief|ask|context|search|plan-session)$/.test(url)) changed();
       return send(res, 200, out);
     } catch (e) {

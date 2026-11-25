@@ -13,8 +13,8 @@ trap 'rm -rf "$stage"' EXIT
 
 # marketplace.json stays out: it holds this zip's hash.
 git archive --format=tar --prefix=scintle/ "$ref" -- \
-  .claude-plugin/plugin.json hooks commands skills server web/dist \
-  LICENSE NOTICE README.md \
+  .claude-plugin/plugin.json hooks commands skills types server web/dist \
+  LICENSE NOTICE README.md ':(exclude)hooks/*.test.tsx' \
   | tar -x -C "$stage"
 
 # Only release builds know where to send the opt-in daily count (D26); the repo's copy is empty.

@@ -5,15 +5,21 @@ description: Every Scintle slash command and terminal command.
 
 ## In Claude Code
 
+Two commands. Everything else is a word after `/scintle`.
+
 | Command | What it does |
 |---|---|
 | `/scintle` | Starts the local server if needed and opens the board. |
-| `/scintle:sync` | Reads waiting sessions now instead of at the next batch. |
-| `/scintle:plan I-007` | Loads an idea's brief and plans it. See [Planning an idea](/scintle/using/planning/). |
-| `/scintle:add` | Lets Scintle read the plans and docs in the folder you're in. See [Folders](/scintle/using/folders/). |
-| `/scintle:stop` | Stops the background server. It also stops by itself after 6 idle hours. |
-| `/scintle:telemetry` | Shows whether usage sharing is on, and the exact next message. Add `enable` or `disable` to change it. See [Telemetry](/scintle/trust/telemetry/). |
-| `/scintle:forget` | Deletes everything Scintle stored. It says what it would delete; `/scintle:forget yes` deletes. |
+| `/scintle:plan` | Opens a picker of your ideas; pick one to plan it with its full history. `/scintle:plan I-007` plans that idea directly. See [Planning an idea](/scintle/using/planning/). |
+
+| After `/scintle` | What it does |
+|---|---|
+| `add` | Lets Scintle read the plans and docs in the folder you're in. See [Folders](/scintle/using/folders/). |
+| `sync` | Reads waiting sessions now instead of at the next batch. |
+| `stop` | Stops the background server. It also stops by itself after 6 idle hours. |
+| `companion` | Shows whether the in-chat companion is on. Add `on` or `off` to change it. |
+| `telemetry` | Shows whether usage sharing is on, and the exact next message. Add `enable` or `disable` to change it. See [Telemetry](/scintle/trust/telemetry/). |
+| `forget` | Deletes everything Scintle stored. It says what it would delete; `/scintle forget yes` deletes. |
 
 ## From a clone of the repo
 

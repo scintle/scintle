@@ -19,7 +19,7 @@ Scintle tries the next ten ports by itself. To pick one, set `SCINTLE_PORT` in t
 
 - **You haven't said yes yet.** The consent screen shows on the empty board; nothing is read before it.
 - **You chose "Only new sessions".** History is skipped; ideas appear as you work.
-- **Sessions are read in batches**: when a session ends, after 30 minutes idle, or when enough has piled up. Run `/scintle:sync` to read now.
+- **Sessions are read in batches**: when a session ends, after 30 minutes idle, or when enough has piled up. Run `/scintle sync` to read now.
 - **No sessions in `~/.claude/projects`.** Scintle reads Claude Code's own transcripts; if you set `CLAUDE_CONFIG_DIR`, it reads that folder instead.
 
 ## "Claude Code is not logged in" or "`claude` isn't on your PATH"
@@ -28,7 +28,7 @@ Scintle reads sessions with your `claude` command. Run `claude` once in a termin
 
 ## It's using too many calls
 
-Reading costs model calls on your Claude plan, capped at 200 a day. The app bar shows today's count. To lower the cap, set `SCINTLE_DAILY_CALLS`. To stop reading history, choose **Only new sessions** or stop the server with `/scintle:stop`.
+Reading costs model calls on your Claude plan, capped at 200 a day. The app bar shows today's count. To lower the cap, set `SCINTLE_DAILY_CALLS`. To stop reading history, choose **Only new sessions** or stop the server with `/scintle stop`.
 
 ## "Reached today's limit of model calls"
 

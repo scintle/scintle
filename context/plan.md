@@ -56,9 +56,9 @@ The two-week me test was dropped: the author uses Scintle daily, and the next go
 
 | # | What | State |
 |---|---|---|
-| R1 | Release zip (D27), Node check, Linux opener, `/scintle:forget`, LICENSE, 0.1.0 | Done; zip installs cleanly into a throwaway Claude config |
+| R1 | Release zip (D27), Node check, Linux opener, `/scintle forget`, LICENSE, 0.1.0 | Done; zip installs cleanly into a throwaway Claude config |
 | R2 | Cost on the consent screen, redaction test on a synthetic history, failure messages | Done |
-| R3 | Opt-in usage count (D26): client, board question, `/scintle:telemetry`, collector | Done; collector tested locally with wrangler; **deploying it is the owner's step** |
+| R3 | Opt-in usage count (D26): client, board question, `/scintle telemetry`, collector | Done; collector tested locally with wrangler; **deploying it is the owner's step** |
 | R4 | Help and feedback with redacted diagnostics, issue templates | Done |
 | R5 | Docs site (Astro + Starlight, terminal theme), landing page with the D28 pitch, README | Done locally; deploys on first push |
 | R6 | CI (macOS + Linux), docs and release workflows | Written; **first run needs the GitHub org and a push** |
@@ -86,7 +86,7 @@ Claude Code session(s)                                 Browser board (React)
 - **Plugin**
   - `SessionStart` runs `scintle ensure`, which starts the server detached if it isn't running (`runDetached` pattern).
   - Hooks post `{session_id, transcript_path, cwd, event}` to the server. Every hook exits 0 and has a 2 s timeout.
-  - Commands: `/scintle` (open the board), `/scintle:plan <idea>` (pull the brief into this session), `/scintle:stop`.
+  - Commands: `/scintle` (open the board), `/scintle:plan <idea>` (pull the brief into this session), `/scintle stop`.
 - **Model calls**
   - The server runs `claude -p` as a child process on your own login (vibesenpai's `callModel` pattern).
   - Recursion guard: `SCINTLE_DISABLE=1` plus a marker working directory that ingest skips.

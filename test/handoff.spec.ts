@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { contextFor, historyOf, ideaCard, matchIdeas, searchIdeas } from '../server/handoff.ts';
+import { contextFor, deadEnd, historyOf, ideaCard, matchIdeas, pickerIdeas, searchIdeas } from '../server/handoff.ts';
 import { openDb, type Db } from '../server/store/db.ts';
 import { addEvent, addLink, createIdea } from '../server/store/ledger.ts';
 
@@ -74,5 +74,43 @@ describe('the brief Claude reads', () => {
     const { moveStage } = await import('../server/actions.ts');
     moveStage(db, 'I-002', 'dropped', 'no time for guitar projects this year', 'not-interested');
     expect(historyOf(db, 'I-002')).toMatch(/## Lifecycle\n- \d{4}-\d\d-\d\d dropped \(not interested\): no time for guitar projects this year/);
+  });
+});
+
+describe('dead ends', () => {
+  it('tags what was dropped in the history, and answers only for a dropped approach or idea', async () => {
+    const { moveStage } = await import('../server/actions.ts');
+    const tried = addEvent(db, { ideaId: 'I-001', type: 'tried', ts: '2026-11-03T10:00:00.000Z', origin: 'user', payload: { approach: 'a Slack bot', outcome: 'dropped', why: 'nobody answered after day two' } });
+    const kept = addEvent(db, { ideaId: 'I-001', type: 'tried', ts: '2026-11-04T10:00:00.000Z', origin: 'user', payload: { approach: 'an email digest', outcome: 'kept' } });
+    const decided = addEvent(db, { ideaId: 'I-001', type: 'decided', ts: '2026-11-05T10:00:00.000Z', origin: 'user', payload: { decision: 'Fridays' } });
+    const h = historyOf(db, 'I-001') ?? '';
+    expect(h).toContain(`[#${tried}]`);
+    expect(h).not.toContain(`[#${kept}]`);
+    expect(h).toContain('flag_dead_end');
+    expect(deadEnd(db, tried)).toMatchObject({ ideaId: 'I-001', what: 'a Slack bot', why: 'nobody answered after day two', day: '2026-11-03' });
+    expect(deadEnd(db, kept)).toBeUndefined();
+    expect(deadEnd(db, decided)).toBeUndefined();
+    expect(deadEnd(db, 99_999)).toBeUndefined();
+    moveStage(db, 'I-002', 'dropped', '', 'crowded');
+    const drop = (db.prepare("SELECT id FROM events WHERE idea_id = 'I-002' AND type = 'dropped'").get() as { id: number }).id;
+    expect(deadEnd(db, drop)).toMatchObject({ ideaId: 'I-002', what: 'Chord change trainer', why: 'crowded market' });
+    // A history with nothing dropped carries no instruction.
+    expect(historyOf(db, 'I-003')).not.toContain('flag_dead_end');
+  });
+
+  it('keeps the /scintle:plan brief free of ids', async () => {
+    const { buildBrief } = await import('../server/brief.ts');
+    addEvent(db, { ideaId: 'I-001', type: 'tried', ts: '2026-11-03T10:00:00.000Z', origin: 'user', payload: { approach: 'a Slack bot', outcome: 'dropped' } });
+    expect(buildBrief(db, 'I-001')?.body).not.toMatch(/\[#\d+\]/);
+  });
+});
+
+describe('the plan picker', () => {
+  it('lists open ideas before closed ones, each with its latest step', async () => {
+    const { moveStage } = await import('../server/actions.ts');
+    moveStage(db, 'I-001', 'dropped', '', 'crowded');
+    const list = pickerIdeas(db);
+    expect(list.at(-1)).toMatchObject({ id: 'I-001', stage: 'dropped', last: 'dropped' });
+    expect(list.slice(0, -1).every((i) => i.stage !== 'dropped')).toBe(true);
   });
 });

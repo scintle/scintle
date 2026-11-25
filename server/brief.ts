@@ -11,15 +11,17 @@ const REASON: Record<string, string> = {
 };
 const LIFECYCLE = ['planned', 'building', 'parked', 'resumed', 'released', 'dropped', 'revived'];
 
-function line(e: EventRow): string {
+function line(e: EventRow, ids = false): string {
   const p = payloadOf(e);
   const detail = String(p['decision'] ?? p['problem'] ?? p['note'] ?? p['why'] ?? p['to'] ?? p['plan'] ?? p['file'] ?? '');
   const reason = typeof p['reason'] === 'string' ? ` (${REASON[p['reason']] ?? p['reason']})` : '';
   const quote = e.quote === null ? '' : ` — "${e.quote}"`;
-  return `- ${day(e.ts)} ${e.type}${reason}${detail === '' ? '' : `: ${detail}`}${quote}`;
+  return `- ${day(e.ts)} ${e.type}${reason}${detail === '' ? '' : `: ${detail}`}${quote}${ids && e.type === 'dropped' ? ` [#${e.id}]` : ''}`;
 }
 
-export function buildBrief(db: Db, ideaId: string): { body: string; version: number } | undefined {
+/** `ids` tags what was dropped with its event id, so the companion's `flag_dead_end` can name it (D33). */
+export function buildBrief(db: Db, ideaId: string, opts: { ids?: boolean } = {}): { body: string; version: number } | undefined {
+  const ids = opts.ids === true;
   const idea = getIdea(db, ideaId);
   if (idea === undefined) return undefined;
   const events = liveEvents(db, ideaId);
@@ -43,13 +45,14 @@ export function buildBrief(db: Db, ideaId: string): { body: string; version: num
     `**Stage:** ${idea.stage}${names.length > 0 ? ` · **Earlier names:** ${names.join(' → ')}` : ''}`,
     ...(origins.length > 0 ? [`**Grew out of:** ${origins.join(', ')}`] : []),
     '',
-    ...section('How it got here', shaping.map(line)),
-    ...section('Decisions already made', decided.map(line)),
+    ...section('How it got here', shaping.map((e) => line(e))),
+    ...section('Decisions already made', decided.map((e) => line(e))),
     ...section('Tried before (do not repeat what was dropped)', tried.map((e) => {
       const p = payloadOf(e);
-      return `- ${String(p['approach'] ?? '')}: **${String(p['outcome'] ?? '?')}**${p['why'] ? ` (${String(p['why'])})` : ''}${e.quote ? ` — "${e.quote}"` : ''}`;
+      const tag = ids && p['outcome'] === 'dropped' ? ` [#${e.id}]` : '';
+      return `- ${String(p['approach'] ?? '')}: **${String(p['outcome'] ?? '?')}**${p['why'] ? ` (${String(p['why'])})` : ''}${e.quote ? ` — "${e.quote}"` : ''}${tag}`;
     })),
-    ...section('Lifecycle', lifecycle.map(line)),
+    ...section('Lifecycle', lifecycle.map((e) => line(e, ids))),
     ...section('Documents', docs.filter((d) => d !== '').map((d) => `- ${d}`)),
     ...section('Open questions', open.map((q) => `- ${q.kind}: ${q.payload}`)),
     '## Ask',

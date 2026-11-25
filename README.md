@@ -24,12 +24,9 @@ asks before running it. Then start a new Claude Code session and run `/scintle`.
 | Command | What it does |
 |---|---|
 | `/scintle` | Opens the board. |
-| `/scintle:sync` | Reads waiting sessions now. |
-| `/scintle:plan I-007` | Plans an idea with its full history. |
-| `/scintle:add` | Lets Scintle read the plans and docs in this folder. |
-| `/scintle:telemetry` | Shows or changes the opt-in anonymous usage count. |
-| `/scintle:forget` | Deletes everything Scintle stored. |
-| `/scintle:stop` | Stops the background server. |
+| `/scintle:plan` | Pick an idea and plan it with its full history (or `/scintle:plan I-007`). |
+
+`/scintle` also takes a word: `add` (read this folder's docs), `sync`, `stop`, `companion on|off`, `telemetry`, `forget`.
 
 ## What it reads, stores and sends
 

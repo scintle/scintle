@@ -41,9 +41,34 @@ function asContext(body: string): string {
 
 /** One idea's history for the model, or undefined when there is no such idea. */
 export function historyOf(db: Db, ideaId: string): string | undefined {
-  const b = buildBrief(db, ideaId);
-  return b === undefined ? undefined : asContext(b.body);
+  const b = buildBrief(db, ideaId, { ids: true });
+  if (b === undefined) return undefined;
+  const body = asContext(b.body);
+  return /\[#\d+\]/.test(body)
+    ? `${body}\n\nIf the user proposes, or you are about to plan, something that repeats an approach or idea above marked dropped [#id], call flag_dead_end with that id before answering, then say so. Only for a real repeat, not a related topic.`
+    : body;
 }
+
+export type DeadEnd = { eventId: number; ideaId: string; title: string; what: string; why: string; day: string };
+
+/** A dropped approach or a dropped idea, from the board's own record; undefined for anything else (D33). */
+export function deadEnd(db: Db, eventId: number): DeadEnd | undefined {
+  const e = db.prepare(
+    `SELECT e.id, e.idea_id, e.type, e.ts, e.payload, i.title FROM events e JOIN ideas i ON i.id = e.idea_id
+     WHERE e.id = ? AND e.state != 'removed' AND NOT EXISTS (SELECT 1 FROM events c WHERE c.supersedes = e.id AND c.state != 'removed')`,
+  ).get(eventId) as { id: number; idea_id: string; type: string; ts: string; payload: string; title: string } | undefined;
+  if (e === undefined) return undefined;
+  const p = JSON.parse(e.payload) as Record<string, unknown>;
+  const s = (k: string): string => (typeof p[k] === 'string' ? (p[k] as string) : '');
+  const base = { eventId: e.id, ideaId: e.idea_id, title: e.title, day: e.ts.slice(0, 10) };
+  if (e.type === 'tried' && p['outcome'] === 'dropped') return { ...base, what: s('approach'), why: s('why') };
+  if (e.type === 'dropped') return { ...base, what: e.title, why: s('why') || DROP_REASON[s('reason')] || '' };
+  return undefined;
+}
+
+const DROP_REASON: Record<string, string> = {
+  'not-interested': 'not interested', crowded: 'crowded market', 'no-demand': 'no real demand', 'not-feasible': 'not feasible',
+};
 
 type Hit = { id: string; title: string; stage: string; ended: string | null; problem: string; last: string };
 
@@ -121,6 +146,21 @@ export function ideaCard(db: Db, ideaId: string): IdeaCard | undefined {
     events: events.slice(-MAX_CARD_EVENTS),
     total: events.length,
   };
+}
+
+export type PickIdea = { id: string; title: string; stage: string; ended: string | null; problem: string; moved: string; last: string };
+const OPEN_ORDER: Record<string, number> = { building: 0, planned: 1, exploring: 2, seed: 3, parked: 4, released: 5, evolved: 6, dropped: 7 };
+
+/** Every idea for the companion's plan picker: open ones first, each stage most recently moved first, with its latest step. */
+export function pickerIdeas(db: Db): PickIdea[] {
+  const rows = db.prepare(
+    `SELECT i.id, i.title, i.stage, i.resolution AS ended, i.problem, i.updated_at AS moved,
+       (SELECT e.type FROM events e WHERE e.idea_id = i.id AND e.state != 'removed' ORDER BY e.ts DESC LIMIT 1) AS last
+     FROM ideas i`,
+  ).all() as (Omit<PickIdea, 'last'> & { last: string | null })[];
+  return rows
+    .map((r) => ({ ...r, problem: r.problem.slice(0, 160), last: r.last ?? 'born' }))
+    .sort((a, b) => (OPEN_ORDER[a.stage] ?? 9) - (OPEN_ORDER[b.stage] ?? 9) || b.moved.localeCompare(a.moved));
 }
 
 /** The folder the idea was last worked in, from its sessions; home when none still exists. */

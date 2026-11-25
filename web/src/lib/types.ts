@@ -59,6 +59,8 @@ export type Snapshot = {
   telemetry: {
     consent: 'yes' | 'no' | null;
     blockedBy: null | 'not-asked' | 'declined' | 'DO_NOT_TRACK' | 'SCINTLE_TELEMETRY_DISABLED' | 'CI' | 'no-endpoint';
+    /** Not yet asked, and the board is open on a later day than its first: the moment to ask. */
+    askNow: boolean;
     next: Record<string, unknown>;
     lastPayload: Record<string, unknown> | null;
     lastSentAt: string | null;

@@ -2,9 +2,17 @@
   "name": "scintle",
   "version": "0.1.3",
   "description": "Your AI chats, turned into a history of your ideas.",
-  "author": { "name": "scintle contributors" },
+  "author": {
+    "name": "scintle contributors"
+  },
   "homepage": "https://scintle.github.io/scintle/",
   "repository": "https://github.com/scintle/scintle",
   "license": "MIT",
-  "keywords": ["ideas", "local-first", "planning", "lineage"]
+  "keywords": [
+    "ideas",
+    "local-first",
+    "planning",
+    "lineage"
+  ],
+  "types": "./types/companion.d.ts"
 }

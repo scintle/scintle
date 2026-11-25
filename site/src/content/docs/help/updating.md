@@ -18,10 +18,10 @@ Your ideas are kept across updates.
 claude plugin uninstall scintle@scintle
 ```
 
-This removes the plugin but **not your data**, on purpose: a reinstall shouldn't cost you your ideas' history. To delete the data too, run `/scintle:forget` **before** uninstalling, or afterwards:
+This removes the plugin but **not your data**, on purpose: a reinstall shouldn't cost you your ideas' history. To delete the data too, run `/scintle forget` **before** uninstalling, or afterwards:
 
 ```sh
 rm -rf ~/.local/share/scintle
 ```
 
-The background server stops by itself within 6 hours once nothing uses it, or run `/scintle:stop` before uninstalling.
+The background server stops by itself within 6 hours once nothing uses it, or run `/scintle stop` before uninstalling.

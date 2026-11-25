@@ -1,6 +1,6 @@
 ---
 description: Plan an idea from your Scintle board, with its full history
-argument-hint: I-001
+argument-hint: "[idea, or nothing for a picker]"
 allowed-tools: Bash(node:*), Bash(echo:*), EnterPlanMode
 ---
 

@@ -5,7 +5,7 @@ description: How Scintle turns your sessions into ideas and events, and the chec
 
 ## When it reads
 
-Each time a session pauses or ends, Scintle's hook tells the local server, which copies the new turns (redacted) into its database. That costs nothing. Reading them with a model happens in batches: when a session ends, after 30 idle minutes, when about one call's worth of conversation has built up, or when you run `/scintle:sync`.
+Each time a session pauses or ends, Scintle's hook tells the local server, which copies the new turns (redacted) into its database. That costs nothing. Reading them with a model happens in batches: when a session ends, after 30 idle minutes, when about one call's worth of conversation has built up, or when you run `/scintle sync`.
 
 ## What the model sees
 

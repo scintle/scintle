@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,8 @@ import { buildPing } from '../server/telemetry.ts';
 /** D1's prepare/bind/run/all shape over node:sqlite, with the real migration. */
 function d1(): { env: Env; db: DatabaseSync } {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(join(import.meta.dirname, '../telemetry/migrations/0001_counts.sql'), 'utf8'));
+  const dir = join(import.meta.dirname, '../telemetry/migrations');
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) db.exec(readFileSync(join(dir, f), 'utf8'));
   const stmt = (sql: string, params: unknown[] = []) => ({
     bind: (...v: unknown[]) => stmt(sql, v),
     run: async () => db.prepare(sql).run(...(params as never[])),
@@ -28,7 +29,10 @@ describe('collector', () => {
     expect((await ingest(post(ping), env, NOW)).status).toBe(204);
     expect((await ingest(post({ ...ping, first_this_week: false, new_install: false }), env, NOW)).status).toBe(204);
     const rows = db.prepare('SELECT * FROM counts').all();
-    expect(rows).toEqual([{ day: '2026-11-24', version: '0.1', os: 'darwin', arch: 'arm64', install_month: '2026-11', pings: 2, new_installs: 1, week_firsts: 1, month_firsts: 2 }]);
+    expect(rows).toEqual([{
+      day: '2026-11-24', version: '0.1', os: 'darwin', arch: 'arm64', install_month: '2026-11', pings: 2, new_installs: 1, week_firsts: 1, month_firsts: 2,
+      used_board: 0, used_lineage: 0, used_replay: 0, used_plan: 0, used_research: 0, used_ask: 0, used_correct: 0, used_triage: 0, used_new_idea: 0, used_companion: 0,
+    }]);
     expect(JSON.stringify(rows)).not.toContain('203.0.113.7');
   });
 
@@ -50,6 +54,17 @@ describe('collector', () => {
     const s = (await stats(env)) as { daily: { n: number }[]; byOs: { k: string; n: number }[] };
     expect(s.daily[0]?.n).toBe(MIN_GROUP + 1);
     expect(s.byOs).toEqual([{ k: 'darwin', n: MIN_GROUP }]);
+  });
+
+  it('counts, per feature, how many messages said it was used, hiding any under the minimum', async () => {
+    const { env } = d1();
+    const today = new Date();
+    const used = (over: Partial<typeof ping.used>) => ({ ...ping, used: { ...ping.used, ...over } });
+    for (let i = 0; i < MIN_GROUP; i++) await ingest(post(used({ board: true, plan: i < 2 })), env, today);
+    expect((await ingest(post({ ...ping, used: { ...ping.used, spy: true } }), env, today)).status).toBe(400);
+    expect((await ingest(post({ ...ping, used: { ...ping.used, plan: 3 } }), env, today)).status).toBe(400);
+    const s = (await stats(env)) as { features: { k: string; n: number }[] };
+    expect(s.features).toEqual([{ k: 'board', n: MIN_GROUP }]);
   });
 
   it('serves the page and stats, and nothing else', async () => {

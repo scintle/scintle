@@ -2,6 +2,10 @@
 
 ## 0.1.3
 
+- Two commands: `/scintle` and `/scintle:plan`. The rest are words after `/scintle`: `add`, `sync`, `stop`, `companion`, `telemetry`, `forget` (they were `/scintle:add` and so on).
+- `/scintle:plan` on its own opens a picker of your ideas.
+- The Claude Code companion ships in the plugin, on by default: Claude can look up an idea you name, a line under your prompt shows what it found, and it warns when you're about to repeat something you dropped. `/scintle companion off` turns it off.
+- Usage sharing asks on a later day, not at first run, and says which features were used.
 - Turning reading off now stops an import already running, before its next model call.
 - Every model call runs with no tools, MCP servers, settings or hooks, and can't ask for more; a test holds this.
 - Research is three calls: a web search, then reading only the pages that search returned (without your idea), then writing the report with no tools.

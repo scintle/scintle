@@ -52,6 +52,16 @@ export function setConsent(db: Db, on: boolean): void {
   db.prepare("INSERT INTO meta (key, value) VALUES ('consent', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(on ? 1 : 0);
 }
 
+/** The Claude Code companion: on unless the person turned it off (D32). */
+export function companionOn(db: Db): boolean {
+  const r = db.prepare("SELECT value FROM meta WHERE key = 'companion'").get() as { value: number } | undefined;
+  return r?.value !== 0;
+}
+
+export function setCompanion(db: Db, on: boolean): void {
+  db.prepare("INSERT INTO meta (key, value) VALUES ('companion', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(on ? 1 : 0);
+}
+
 /** "Only new sessions": treat everything already on disk as read, so no backfill is spent. */
 export function skipHistory(db: Db): void {
   db.exec('UPDATE sessions SET turns_extracted = (SELECT COALESCE(MAX(seq), -1) FROM turns WHERE turns.session_id = sessions.id)');

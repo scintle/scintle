@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { dataDir } from './lib/config.ts';
 import { writeJson } from './lib/files.ts';
-import { ARCH, OS, SCHEMA_VERSION, type Ping } from './telemetry-schema.ts';
+import { ARCH, OS, SCHEMA_VERSION, type Ping, FEATURES, type Feature } from './telemetry-schema.ts';
 
 /** Filled in by scripts/build-release.sh; empty in the repo, so a clone or fork never sends. */
 const RELEASE_ENDPOINT = '';
@@ -14,6 +14,10 @@ type State = {
   consent: 'yes' | 'no' | null;
   consentSchema?: number;
   installedAt: string;
+  /** The first day the board was open with reading allowed; the question waits for a later day. */
+  firstBoardDay?: string;
+  /** Features used since the last message; kept only while sharing is on, cleared when a message is sent. */
+  used?: Feature[];
   pinged?: boolean;
   lastDay?: string;
   lastWeek?: string;
@@ -94,8 +98,9 @@ export function buildPing(s: State, now: Date, host = { version: scintleVersion(
     first_this_week: s.lastWeek !== isoWeek(now),
     first_this_month: s.lastMonth !== month(now),
     install_month: now < sixMonths ? month(installed) : null,
+    used: Object.fromEntries(FEATURES.map((f) => [f, s.used?.includes(f) ?? false])) as Record<Feature, boolean>,
   };
-  return { ping, next: { ...s, pinged: true, lastDay: day(now), lastWeek: isoWeek(now), lastMonth: month(now), lastPayload: ping, lastSentAt: now.toISOString() } };
+  return { ping, next: { ...s, used: [], pinged: true, lastDay: day(now), lastWeek: isoWeek(now), lastMonth: month(now), lastPayload: ping, lastSentAt: now.toISOString() } };
 }
 
 /** At most once per UTC day. The marks are saved before sending, so a failure is never retried. */
@@ -134,7 +139,23 @@ export function setConsent(on: boolean, now = new Date()): State {
 }
 
 /** What the board and `scintle telemetry status` show. */
-export function status(env: NodeJS.ProcessEnv = process.env, now = new Date()): { consent: State['consent']; blockedBy: Blocked | null; next: Ping; lastPayload: Ping | null; lastSentAt: string | null } {
+export function status(env: NodeJS.ProcessEnv = process.env, now = new Date()): { consent: State['consent']; blockedBy: Blocked | null; askNow: boolean; next: Ping; lastPayload: Ping | null; lastSentAt: string | null } {
   const s = loadState(now);
-  return { consent: s.consent, blockedBy: blockedBy(s, env), next: buildPing(s, now).ping, lastPayload: s.lastPayload ?? null, lastSentAt: s.lastSentAt ?? null };
+  const blocked = blockedBy(s, env);
+  // Asked once Scintle has been useful: the board opened again on a later day than the first.
+  const askNow = blocked === 'not-asked' && s.firstBoardDay !== undefined && s.firstBoardDay < day(now);
+  return { consent: s.consent, blockedBy: blocked, askNow, next: buildPing(s, now).ping, lastPayload: s.lastPayload ?? null, lastSentAt: s.lastSentAt ?? null };
+}
+
+/** Notes that a feature was used, only while sharing is on: the next message says yes for it. */
+export function markUsed(feature: Feature, now = new Date()): void {
+  const s = loadState(now);
+  if (s.consent !== 'yes' || s.used?.includes(feature)) return;
+  save({ ...s, used: [...(s.used ?? []), feature] });
+}
+
+/** Notes the first day the board was opened with reading allowed. */
+export function noteBoardOpen(now = new Date()): void {
+  const s = loadState(now);
+  if (s.firstBoardDay === undefined) save({ ...s, firstBoardDay: day(now) });
 }

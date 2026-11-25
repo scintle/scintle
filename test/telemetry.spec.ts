@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { blockedBy, buildPing, isoWeek, loadState, maybePing, setConsent } from '../server/telemetry.ts';
+import { blockedBy, buildPing, isoWeek, loadState, markUsed, maybePing, noteBoardOpen, setConsent, status } from '../server/telemetry.ts';
 import { PING_KEYS, validPing } from '../server/telemetry-schema.ts';
 
 const host = { version: '0.1', os: 'darwin', arch: 'arm64' };
@@ -97,5 +97,35 @@ describe('when it sends', () => {
     setConsent(true);
     await maybePing(at('2026-11-25T10:00:00Z'), ENV);
     expect(sent[1]).toMatchObject({ new_install: true });
+  });
+});
+
+describe('when it asks', () => {
+  it('waits until the board is open on a later day than its first, and stops asking once answered', () => {
+    expect(status(ENV, at('2026-11-24T10:00:00Z')).askNow).toBe(false);
+    noteBoardOpen(at('2026-11-24T10:00:00Z'));
+    noteBoardOpen(at('2026-11-25T10:00:00Z'));
+    expect(status(ENV, at('2026-11-24T23:00:00Z')).askNow).toBe(false);
+    expect(status(ENV, at('2026-11-25T09:00:00Z')).askNow).toBe(true);
+    setConsent(false, at('2026-11-25T09:05:00Z'));
+    expect(status(ENV, at('2026-11-26T09:00:00Z')).askNow).toBe(false);
+  });
+});
+
+describe('what it says was used', () => {
+  it('keeps nothing without a yes, says yes once per feature, and starts over after each message', async () => {
+    markUsed('plan');
+    expect(loadState().used ?? []).toEqual([]);
+    setConsent(true);
+    markUsed('plan');
+    markUsed('plan');
+    markUsed('replay');
+    expect(loadState().used).toEqual(['plan', 'replay']);
+    await maybePing(at('2026-11-24T10:00:00Z'), ENV);
+    const got = sent as { used: Record<string, boolean> }[];
+    expect(got[0]?.used).toMatchObject({ plan: true, replay: true, board: false, research: false });
+    expect(loadState().used).toEqual([]);
+    await maybePing(at('2026-11-25T10:00:00Z'), ENV);
+    expect(Object.values(got[1]?.used ?? {}).every((v) => v === false)).toBe(true);
   });
 });

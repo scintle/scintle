@@ -157,7 +157,7 @@ export function FoldersDialog() {
           <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="~/Workspace/my-project" aria-label="Folder path" spellCheck={false} />
           <button className="btn primary small" disabled={!path.trim()}>Add folder</button>
         </form>
-        <p className="hint">Or run <code>/scintle:add</code> in a Claude Code session inside that folder. Scintle reads its top-level Markdown, plus plans, specs, context, decisions and reports folders inside it.</p>
+        <p className="hint">Or run <code>/scintle add</code> in a Claude Code session inside that folder. Scintle reads its top-level Markdown, plus plans, specs, context, decisions and reports folders inside it.</p>
       </div>
     </Modal>
   );

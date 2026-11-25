@@ -385,3 +385,58 @@ Research: `~/Workspace/reports/Privacy first telemetry for Scintle.md`.
 - Research takes 3 calls instead of 1.
 - Pages behind a cross-host redirect go unread.
 - Search queries still carry words from the idea, which is inherent to searching.
+
+**D26 addendum (2026-11-25): schema 2 adds `used`, and the question waits for a later day.**
+- **`used`:** yes or no for nine features since the last message: board, lineage, replay, plan, research, ask, correct, triage and new_idea.
+  - They're noted locally only while sharing is on, and cleared on each send. The server routes mark them; only Lineage and Replay are reported by the board (`POST /api/used`).
+  - The collector keeps one counter per feature per day, and the public page hides any under 10.
+  - **Why:** one message a day says only "installed and running". The owner needs to know which features are used, without per-event messages, which would put working times on the wire.
+- **Asking:** the question appears on the first board open on a later day than the first, alone on screen: no import running, no other question.
+  - **Why:** asking before the board had filled asked for trust before Scintle had earned any.
+- **Schema 2:** a changed schema asks again. Nobody had sent schema 1, since no release carried an endpoint before this.
+- **D1 caps compound SELECTs below SQLite's default.** The feature totals are one row of sums, and the local `node:sqlite` tests don't catch such limits, so every collector change gets a request against the deployed Worker.
+
+## D32 · 2026-11-25 · The companion ships inside the plugin, on by default
+
+**Decision:**
+- The Claude Code companion (D30's client) is a hooks module in the Scintle plugin: `hooks/companion.tsx`, listed under `modules` in `hooks/hooks.json` beside the classic hooks, and typed by `types/companion.d.ts`.
+- What it does:
+  - points Claude at an idea a prompt names;
+  - gives Claude `search_ideas` and `idea_history`;
+  - when Claude reads an idea, draws one line under the prompt with the idea's most telling fact and a button to the board;
+  - suggests `/scintle:plan` after a turn about one idea.
+- **On by default.** `/scintle:companion off` turns it off: no tools are registered, and the server answers no pointers.
+- It also stays silent until reading is allowed on the board (D21).
+- Telemetry gains `companion`: Claude looked up an idea through it.
+
+**Why:**
+- The adoption research put the hook in chat, not on the board.
+- Claude Code's own docs (mods overview, read 2026-11-25): "Mods are on by default", and a plugin's `hooks.json` may hold classic hooks and `modules` together.
+- Tested 2026-11-25: one plugin ran a classic SessionStart hook and a module in the same session.
+
+**Cost:**
+- Idea names reach Claude in ordinary chats, and the history too when Claude looks it up. The privacy page says so.
+- Mods need Claude Code 2.1.287+. They don't load in an untrusted folder, under policies that block plugin hooks, or with `--safe-mode`. The classic hooks keep working there.
+- The engine writes a `tsconfig.json` into a hot-loaded plugin folder, so development loads `scripts/stage-plugin.sh`'s copy, never the repo.
+- `npm run check:companion` validates and tests the mod. It needs the `claude` CLI, so CI doesn't run it yet.
+
+
+## D33 · 2026-11-25 · The dead-end guard: Claude judges, the board supplies the evidence
+
+**Decision:**
+- In the history the companion gives Claude, each dropped approach and dropped idea is tagged `[#event id]`. The history then tells Claude to call `flag_dead_end` only when the user proposes, or Claude is about to plan, a real repeat. `/scintle:plan` briefs stay untagged.
+- `flag_dead_end(event_id)` asks the server (`GET /api/dead-end/:id`), which answers only for a live `tried` event with outcome `dropped`, or a `dropped` event.
+- The line under the prompt is built from that record: the approach, the date and the person's reason. It's an amber ⚠ with a **See why** button.
+- Each id is shown once per conversation.
+
+**Why:**
+- A false "you tried this before" costs more than silence. The model that sees the whole conversation judges best whether a proposal repeats a dead end, and it adds no model calls.
+- Building the line from the board means Claude can point at evidence but can't write it. An id that isn't a dead end is refused.
+- Tested 2026-11-25 with `claude -p` on the owner's real board (5 dropped approaches, all in one idea):
+  - a dropped approach proposed again was flagged (#220);
+  - a related approach that had been kept was not;
+  - a passing mention didn't even trigger a history lookup.
+
+**Cost:**
+- It only works when Claude has read the idea's history in that conversation.
+- Its judgment is the model's, so a miss stays possible; the record it shows can't be wrong.
