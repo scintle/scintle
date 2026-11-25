@@ -3,7 +3,7 @@ title: Changelog
 description: What changed in each Scintle release.
 ---
 
-## Unreleased
+## 0.1.4
 
 - With an idea open, Replay plays just that idea's story, and the replay feed shows even with an idea open.
 - The line under your prompt tells where an idea came from ("merged from …"), says "Pick it up" when you're coming back to one, and shows one line per story, not one for each parent.
