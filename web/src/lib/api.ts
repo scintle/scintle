@@ -15,3 +15,5 @@ export function post<T = ActionResult>(path: string, body: object = {}): Promise
 
 export type Brief = { id: number; body: string; version: number };
 export type AskReply = { kind: 'select'; idea: string; text: string } | { kind: 'answer'; text: string } | { kind: 'none'; text: string };
+
+export const getDiagnostics = (): Promise<{ text: string }> => request('/api/diagnostics');

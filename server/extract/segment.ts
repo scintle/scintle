@@ -24,7 +24,7 @@ export function pendingTurns(db: Db, sessionId: string): SegTurn[] {
 /** How much unread conversation a session holds, in prompt characters; 0 if none of it is the person's. */
 export function pendingSize(db: Db, sessionId: string): number {
   const turns = pendingTurns(db, sessionId);
-  if (!turns.some((t) => t.role === 'user')) return 0;
+  if (!turns.some((t) => t.role === 'user' || t.role === 'doc')) return 0;
   return turns.reduce((a, t) => a + forPrompt(t).length + 40, 0);
 }
 
@@ -43,6 +43,6 @@ export function segments(turns: readonly SegTurn[]): SegTurn[][] {
     size += n;
   }
   if (cur.length > 0) out.push(cur);
-  // A segment with no human words has no ideas in it.
-  return out.filter((s) => s.some((t) => t.role === 'user'));
+  // A segment with no human words or saved document has no ideas in it.
+  return out.filter((s) => s.some((t) => t.role === 'user' || t.role === 'doc'));
 }

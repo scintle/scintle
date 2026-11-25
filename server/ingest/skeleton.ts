@@ -1,6 +1,7 @@
 /** Scintle's harness-neutral session form. Everything past `server/ingest/` reads only this. */
 
-type Role = 'user' | 'assistant' | 'command';
+/** `doc`: a saved plan, spec or report, read as one turn (D23). */
+type Role = 'user' | 'assistant' | 'command' | 'doc';
 
 export type Turn = {
   /** Ordinal among candidate turns, rewound ones included, so it stays stable as the file grows. */

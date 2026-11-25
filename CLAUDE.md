@@ -12,10 +12,10 @@ Read `context/` before changing anything structural:
 
 - A broken Scintle never breaks a session: every hook exits 0 with a short timeout; work runs in `scintled`, never in the hook.
 - Redact at construction. Anything persisted or sent to a model has passed `redact()`.
-- Never write the harness's files or the user's config. We read `~/.claude/projects`.
+- Never write the harness's files or the user's config. We read `~/.claude`, plus only folders the user added (D25). Never scan the disk.
 - Nothing past `server/ingest/` reads a vendor transcript format; it reads the skeleton.
 - Inferred is shown as inferred. The user corrects; we never ask per event.
-- No telemetry. No prices.
+- No telemetry except D26: opt-in, no ID, a fixed published schema. No prices.
 
 ## Code
 

@@ -1,0 +1,21 @@
+name: Something broke
+description: An error, a crash, or the board not doing what it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: "1. Ran /scintle\n2. Clicked …"
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: On the board, open the project menu, then Help and feedback, then Copy diagnostics. It holds versions and counts, never your ideas.
+      render: text

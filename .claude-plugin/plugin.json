@@ -1,8 +1,10 @@
 {
   "name": "scintle",
-  "version": "0.0.1",
-  "description": "An idea board that keeps itself, with each idea's history behind every card.",
+  "version": "0.1.0",
+  "description": "Your AI chats, turned into a history of your ideas.",
   "author": { "name": "scintle contributors" },
+  "homepage": "https://scintle.github.io/scintle/",
+  "repository": "https://github.com/scintle/scintle",
   "license": "MIT",
   "keywords": ["ideas", "local-first", "planning", "lineage"]
 }

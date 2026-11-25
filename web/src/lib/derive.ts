@@ -1,6 +1,6 @@
 /** Pure views over the snapshot: no fetching, no state. */
 
-import type { Ev, Idea, Link, RawEvent, Snapshot, Stage } from './types';
+import type { Ev, Idea, Link, RawEvent, Resolution, Snapshot, Stage } from './types';
 
 export const OPEN_STAGES: Stage[] = ['seed', 'exploring', 'planned', 'building'];
 export const CLOSED_STAGES: Stage[] = ['released', 'dropped', 'evolved'];
@@ -38,7 +38,6 @@ function safeJson(s: string): Record<string, unknown> {
 export const isLive = (e: Ev): boolean => e.state !== 'removed' && !e.superseded;
 
 /** Unchecked and below 60% confidence: the only inferred events worth flagging (decisions D16). */
-export const isUnsure = (e: Ev): boolean => isLive(e) && e.state === 'dotted' && (e.confidence ?? 1) < 0.6;
 
 export function eventsByIdea(events: Ev[]): Map<string, Ev[]> {
   const m = new Map<string, Ev[]>();
@@ -65,6 +64,7 @@ export function eventDetail(e: Ev, nameOf: NameOf = (id) => id): string {
     case 'building': return s('evidence');
     case 'pivoted': case 'spawned': return nameOf(s('to'));
     case 'merged': return nameOf(s('into'));
+    case 'dropped': return [s('reason') ? RESOLUTION_LABEL[s('reason') as Resolution] ?? '' : '', s('why')].filter(Boolean).join(': ');
     default: return s('why');
   }
 }
@@ -114,17 +114,34 @@ export function lineage(links: Link[], id: string): { from: Link[]; to: Link[] }
   return { from: links.filter((l) => l.to_idea === id), to: links.filter((l) => l.from_idea === id) };
 }
 
-/** Lifecycle moves offered from the stage badge, with what each one means. */
-export function stageMoves(stage: Stage): { type: string; label: string; hint: string }[] {
-  if (stage === 'parked') return [
-    { type: 'resumed', label: 'Resume', hint: 'Back to active work' },
-    { type: 'dropped', label: 'Drop', hint: 'Let it go on purpose' },
-  ];
+/** Why an ended idea ended, as people read it. */
+export const RESOLUTION_LABEL: Record<Resolution, string> = {
+  released: 'Released', pivoted: 'Pivoted', merged: 'Merged', 'not-interested': 'Not interested',
+  crowded: 'Crowded market', 'no-demand': 'No real demand', 'not-feasible': 'Not feasible', other: 'Other',
+};
+export const RESOLUTION_COLOR: Record<Resolution, string> = {
+  released: 'var(--s-released)', pivoted: 'var(--accent)', merged: 'var(--ai)', 'not-interested': 'var(--muted)',
+  crowded: 'var(--bad)', 'no-demand': 'var(--bad)', 'not-feasible': 'var(--bad)', other: 'var(--muted)',
+};
+export const DROP_REASONS: { reason: Resolution; hint: string }[] = [
+  { reason: 'not-interested', hint: 'Looked at it; never wanted it' },
+  { reason: 'crowded', hint: 'Others already do it well' },
+  { reason: 'no-demand', hint: "The pain wasn't strong enough" },
+  { reason: 'not-feasible', hint: 'Too hard, or blocked' },
+  { reason: 'other', hint: 'Something else' },
+];
+
+type Move = { type: string; label: string; hint: string; drop?: true };
+
+/** Lifecycle moves offered from the stage badge, with what each one means. `drop` opens the reason list. */
+export function stageMoves(stage: Stage): Move[] {
+  const drop: Move = { type: 'dropped', drop: true, label: 'Drop', hint: 'Let it go, with a reason' };
+  if (stage === 'parked') return [{ type: 'resumed', label: 'Resume', hint: 'Back to active work' }, drop];
   if (CLOSED_STAGES.includes(stage)) return [{ type: 'revived', label: 'Revive', hint: 'Reopen this idea' }];
   return [
     { type: 'parked', label: 'Park', hint: 'Not now; keep it on the board' },
     { type: 'released', label: 'Mark released', hint: 'It reached users' },
-    { type: 'dropped', label: 'Drop', hint: 'Let it go on purpose' },
+    drop,
   ];
 }
 
@@ -133,4 +150,12 @@ export function nextStep(stage: Stage): { action: 'research' | 'plan'; label: st
   if (stage === 'seed') return { action: 'research', label: 'Research this', secondary: { action: 'plan', label: 'Plan implementation' } };
   if (stage === 'exploring') return { action: 'plan', label: 'Plan implementation', secondary: { action: 'research', label: 'Research' } };
   return null;
+}
+
+/** How to introduce a quote without putting words in the person's mouth. */
+export function saidBy(by: 'you' | 'claude' | 'document' | null): { lead: string; credit: string } {
+  if (by === 'you') return { lead: 'when you said', credit: 'you' };
+  if (by === 'claude') return { lead: 'when Claude wrote', credit: 'Claude' };
+  if (by === 'document') return { lead: 'where the document says', credit: 'a saved document' };
+  return { lead: 'from the record', credit: 'the record' };
 }

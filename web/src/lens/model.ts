@@ -1,16 +1,20 @@
 /** Snapshot → the lens model: day columns sized by activity, lanes, families, glyph-typed events. */
 
 import { EVENT_LABEL, eventDetail, isLive } from '../lib/derive';
-import type { Ev, Idea, Link } from '../lib/types';
+import type { Ev, Idea, Link, Resolution } from '../lib/types';
 
 /** A time as [column key, hour within the column's 0–24 span]. */
 export type LT = [string, number];
-export type Col = { k: string; label: string; w: number; start: number; end: number };
+/** `label` is the full date for tooltips and wide columns; `short` is the day, with the month where it changes. */
+export type Col = { k: string; label: string; short: string; w: number; start: number; end: number };
+export type Range = { from: number | null; to: number | null };
+/** Statuses grouped the way the toolbar filters them. */
+export type StatusGroup = 'active' | 'quiet' | 'ended';
 export type Glyph = 'born' | 'rename' | 'narrowed' | 'decided' | 'report' | 'parked' | 'dropped';
 export type Status = 'active' | 'dormant' | 'parked' | 'merged' | 'pivoted' | 'dropped' | 'released';
-export type LEv = { uid: number; t: LT; type: Glyph; label: string; title: string; quote: string | null; name?: string; suggested: boolean };
+export type LEv = { uid: number; t: LT; type: Glyph; label: string; title: string; quote: string | null; quoteBy: Ev['quote_by']; name?: string; suggested: boolean };
 export type LIdea = {
-  id: string; code: string; fam: string; name: string; problem: string; logo?: string;
+  id: string; code: string; fam: string; name: string; problem: string; logo?: string; resolution: Resolution | null;
   start: LT; end: LT | null; status: Status; lane: number; events: LEv[];
 };
 export type LLink = { from: string; to: string; type: 'pivot' | 'spawn' | 'merge'; t: LT; suggested: boolean };
@@ -30,7 +34,8 @@ const GLYPH: Record<string, Glyph> = {
 
 const dayStart = (t: number): number => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const nextDay = (t: number): number => { const d = new Date(t); d.setDate(d.getDate() + 1); return d.getTime(); };
-const dayLabel = (t: number): string => new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+const dayLabel = (t: number): string => new Date(t).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const month = (t: number): number => new Date(t).getMonth();
 const shortDate = (t: number): string => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
 /** One column per active day; runs of quiet days collapse into one narrow column. */
@@ -52,10 +57,12 @@ function columns(times: number[], now: number): Col[] {
       const days = Math.round((d - quietFrom) / DAY);
       const lastQuiet = new Date(d);
       lastQuiet.setDate(lastQuiet.getDate() - 1);
-      cols.push({ k: `q${quietFrom}`, label: days === 1 ? shortDate(quietFrom) : `${shortDate(quietFrom)} – ${shortDate(lastQuiet.getTime())}`, w: Math.min(0.5, 0.18 + days * 0.03), start: quietFrom, end: d });
+      cols.push({ k: `q${quietFrom}`, label: days === 1 ? shortDate(quietFrom) : `${shortDate(quietFrom)} – ${shortDate(lastQuiet.getTime())}`, short: '', w: Math.min(0.5, 0.18 + days * 0.03), start: quietFrom, end: d });
       quietFrom = null;
     }
-    cols.push({ k: `d${d}`, label: dayLabel(d), w: 0.45 + Math.min(1.5, n / 5), start: d, end: nextDay(d) });
+    const prev = cols.findLast((c) => !c.k.startsWith('q'));
+    const newMonth = prev === undefined || month(prev.start) !== month(d);
+    cols.push({ k: `d${d}`, label: dayLabel(d), short: newMonth ? shortDate(d) : String(new Date(d).getDate()), w: 0.45 + Math.min(1.5, n / 5), start: d, end: nextDay(d) });
   }
   return cols;
 }
@@ -96,8 +103,27 @@ function titleOf(e: Ev, nameOf: (id: string) => string): string {
   return eventDetail(e) || (EVENT_LABEL[e.type] ?? e.type);
 }
 
-export function buildModel(ideas: Idea[], byIdea: Map<string, Ev[]>, links: Link[], nowIso: string, logos: Record<string, string> = {}): Model {
-  const now = Date.parse(nowIso);
+export function statusGroup(s: Status): StatusGroup {
+  return s === 'active' ? 'active' : s === 'dormant' || s === 'parked' ? 'quiet' : 'ended';
+}
+
+type BuildOptions = { logos?: Record<string, string>; range?: Range; groups?: ReadonlySet<StatusGroup>; reasons?: ReadonlySet<Resolution> };
+
+/**
+ * A date range keeps only activity inside it: ideas with none drop out, and lanes start where the range does.
+ * A status filter drops ideas after their status is known, then re-packs the lanes.
+ */
+export function buildModel(allIdeas: Idea[], allByIdea: Map<string, Ev[]>, links: Link[], nowIso: string, opts: BuildOptions = {}): Model {
+  const logos = opts.logos ?? {};
+  const from = opts.range?.from ?? -Infinity, to = opts.range?.to ?? Infinity;
+  const inRange = (iso: string): boolean => { const t = Date.parse(iso); return t >= from && t <= to; };
+  const byIdea = new Map([...allByIdea].map(([id, evs]) => [id, evs.filter((e) => inRange(e.ts))]));
+  const ideas = allIdeas
+    .filter((i) => (byIdea.get(i.id) ?? []).some(isLive) || inRange(i.created_at))
+    .map((i) => (Date.parse(i.created_at) < from ? { ...i, created_at: new Date(from).toISOString() } : i));
+  const nowCap = Math.min(Date.parse(nowIso), to);
+  nowIso = new Date(nowCap).toISOString();
+  const now = nowCap;
   const nameOf = (id: string): string => ideas.find((i) => i.id === id)?.title ?? id;
   const live = (id: string): Ev[] => (byIdea.get(id) ?? []).filter(isLive);
   const times = ideas.flatMap((i) => [Date.parse(i.created_at), ...live(i.id).map((e) => Date.parse(e.ts))]);
@@ -128,6 +154,7 @@ export function buildModel(ideas: Idea[], byIdea: Map<string, Ev[]>, links: Link
       code: (i.title.match(/[A-Za-z0-9]/)?.[0] ?? '?').toUpperCase(),
       fam: fam.get(i.id) as string,
       ...(logos[i.id] ? { logo: logos[i.id] as string } : {}),
+      resolution: i.resolution,
       name: i.title,
       problem: i.problem,
       start: at(i.created_at),
@@ -141,6 +168,7 @@ export function buildModel(ideas: Idea[], byIdea: Map<string, Ev[]>, links: Link
         label: EVENT_LABEL[e.type] ?? e.type,
         title: titleOf(e, nameOf),
         quote: e.quote,
+        quoteBy: e.quote_by,
         ...(e.type === 'born' ? { name: String(e.payload['title'] ?? i.title) } : {}),
         ...(e.type === 'renamed' ? { name: String(e.payload['to'] ?? '') } : {}),
         suggested: e.state === 'dotted' && (e.confidence ?? 1) < LOW_CONFIDENCE,
@@ -158,5 +186,10 @@ export function buildModel(ideas: Idea[], byIdea: Map<string, Ev[]>, links: Link
     };
   });
 
-  return { cols, ideas: out, links: linkOut, fams, now: toLT(cols, now) };
+  // Reasons narrow only the ended ideas; with none chosen, every ended idea counts.
+  const reasonOk = (d: LIdea): boolean => statusGroup(d.status) !== 'ended' || !opts.reasons?.size || (d.resolution !== null && opts.reasons.has(d.resolution));
+  const shown = (opts.groups && opts.groups.size > 0 ? out.filter((d) => opts.groups?.has(statusGroup(d.status))) : out).filter(reasonOk);
+  shown.forEach((d, lane) => { d.lane = lane; });
+  const kept = new Set(shown.map((d) => d.id));
+  return { cols, ideas: shown, links: linkOut.filter((l) => kept.has(l.from) && kept.has(l.to)), fams, now: toLT(cols, now) };
 }

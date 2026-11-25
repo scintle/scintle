@@ -1,18 +1,28 @@
 import { useEffect, useMemo } from 'react';
 import { AppBar } from './components/AppBar';
 import { CommandBar } from './components/CommandBar';
-import { BriefDialog, ConsentDialog, NewIdeaDialog, Toasts } from './components/Dialogs';
+import { BriefDialog, ConsentDialog, NewIdeaDialog, Toasts, FoldersDialog } from './components/Dialogs';
 import { IdeaPanel } from './components/IdeaPanel';
 import { Question } from './components/Question';
+import { TelemetryAsk, TelemetryDialog } from './components/Telemetry';
+import { HelpDialog } from './components/Help';
 import { Consent, FirstRun, ReadBanner } from './components/ReadStatus';
 import { eventsByIdea, ideasInProject } from './lib/derive';
 import { connectStream, useStore } from './store';
 import { Board } from './views/Board';
-import { buildModel } from './lens/model';
+import { buildModel, type Range } from './lens/model';
+import type { RangeChoice } from './store';
+
+const DAY = 86_400_000;
+function rangeBounds(r: RangeChoice, nowIso: string | undefined): Range {
+  if (r.kind === 'all') return { from: null, to: null };
+  if (r.kind === 'last') return { from: Date.parse(nowIso ?? new Date().toISOString()) - r.days * DAY, to: null };
+  return { from: r.from, to: r.to };
+}
 import { Lineage, Overview } from './views/Lineage';
 
 export function App() {
-  const { snap, events, error, view, project, selected, dialog, setDialog, select, load } = useStore();
+  const { snap, events, error, view, project, selected, dialog, setDialog, select, load, range, groups, reasons } = useStore();
 
   useEffect(() => {
     void load();
@@ -43,9 +53,15 @@ export function App() {
     return snap.ideas.filter((i) => ids.has(i.id));
   }, [snap, events, project]);
   const idea = snap?.ideas.find((i) => i.id === selected);
+  const bounds = useMemo(() => rangeBounds(range, snap?.now), [range, snap?.now]);
+  // Counts come from the unfiltered model so each chip says how many it would show.
+  const all = useMemo(
+    () => (snap && view !== 'board' ? buildModel(visible, byIdea, snap.links, snap.now, { logos: snap.logos, range: bounds }) : null),
+    [snap, view, visible, byIdea, bounds],
+  );
   const model = useMemo(
-    () => (snap && view !== 'board' ? buildModel(visible, byIdea, snap.links, snap.now, snap.logos) : null),
-    [snap, view, visible, byIdea],
+    () => (snap && all && (groups.size > 0 || reasons.size > 0) ? buildModel(visible, byIdea, snap.links, snap.now, { logos: snap.logos, range: bounds, groups, reasons }) : all),
+    [snap, all, groups, reasons, visible, byIdea, bounds],
   );
 
   return (
@@ -60,7 +76,8 @@ export function App() {
             <>
               <ReadBanner />
               <Question />
-              {view === 'board' || !model ? <Board ideas={visible} byIdea={byIdea} /> : <Lineage mode={view} model={model} />}
+              <TelemetryAsk />
+              {view === 'board' || !model ? <Board ideas={visible} byIdea={byIdea} /> : <Lineage mode={view} model={model} all={all ?? model} />}
             </>
           )}
         </div>
@@ -68,6 +85,9 @@ export function App() {
       </main>
       {dialog === 'new' && <NewIdeaDialog />}
       {dialog === 'cmd' && <CommandBar byIdea={byIdea} />}
+      {dialog === 'folders' && <FoldersDialog />}
+      {dialog === 'telemetry' && <TelemetryDialog />}
+      {dialog === 'help' && <HelpDialog />}
       {dialog === 'consent' && <ConsentDialog><Consent onDone={() => setDialog(null)} /></ConsentDialog>}
       {dialog !== null && typeof dialog === 'object' && <BriefDialog body={dialog.brief} />}
       <Toasts />

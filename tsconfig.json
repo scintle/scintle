@@ -19,7 +19,9 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true
   },
-  "include": ["server/**/*.ts", "test/**/*.ts"]
+  "include": ["server/**/*.ts", "test/**/*.ts", "telemetry/src/**/*.ts", "npm/**/*.mjs"]
 }

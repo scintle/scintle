@@ -1,0 +1,26 @@
+name: The board got an idea wrong
+description: Two ideas merged that shouldn't be, one idea split in two, a pivot that wasn't, a missing idea.
+labels: [extraction]
+body:
+  - type: markdown
+    attributes:
+      value: Please describe it in your own words. Don't paste quotes from your sessions or idea names you'd rather keep private.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What went wrong
+      options:
+        - Two different ideas were merged into one
+        - One idea was split into two or more
+        - It recorded a pivot, rename or drop that didn't happen
+        - An idea I worked on is missing
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Roughly what you said in the session, and what the board shows instead.
+    validations:
+      required: true

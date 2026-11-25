@@ -185,3 +185,156 @@ Each entry has a date, the decision, and the reason. Add an entry when you make 
 - **Logo:** direction 02, "Branching Track": a grey ancestral trail forks, and the active branch arcs up in ultramarine to a spark, on a dark squircle. (An earlier pass wrongly used the constellation, direction 03.)
 
 **Why:** chosen by the user from a Stitch review run on synthetic demo data only. Real ideas never went to Google.
+
+## D23 · 2026-11-23 · Plans and specs saved as files are a source
+
+**Decision:**
+- **What's read:**
+  - `~/.claude/plans/`;
+  - inside repos the user's sessions worked in, plan-like folders (`plans`, `specs`, `context`, `rfcs`, `adr`, `decisions`, `proposals`) and plan-like files (`PLAN.md`, `SPEC.md`, `ROADMAP.md`, …);
+  - for sessions run outside any repo, that folder's `reports`, `plans`, `specs`, `docs` and `notes`.
+- **What's skipped:**
+  - Claude's own files under `~/.claude` (memory, settings);
+  - `commands`, `skills` and `memory` folders;
+  - any document a transcript still on disk wrote, because that conversation already carries its story.
+- **How it's read:** each document is a one-turn session holding a digest (title, headings, each section's opening, no code, capped at 8k characters), so a long report costs one call. It's dated by file creation, read once, and read again only when the file changes.
+
+**Why:** documents outlive the 30-day transcript cleanup.
+
+**Measured on the user's machine:** 44 documents found, 19 already covered, 25 calls. The board went from 11 to 18 ideas; "Agent blame" came back as "Agent code rationale tracking".
+
+**Not yet:** prompt history (`~/.claude/history.jsonl`). The plan is to read only periods with no transcript, skip short prompts, and make one call per day of activity. Measure before running.
+
+## D24 · 2026-11-23 · Ended ideas carry a reason
+
+**Decision:**
+- Ended ideas get a resolution: released, pivoted, merged, not interested, crowded market, no real demand, not feasible, other. This is the Jira or Linear pattern.
+- **Who sets what:**
+  - released, pivoted and merged are detected;
+  - **"Not interested" is only ever set by the person**: the model's attempts are rewritten to "other";
+  - the model may suggest crowded, no demand or not feasible.
+- **Where it shows:** as pills, and as a reason filter under the Ended chip.
+
+**Why:** the user wanted to dismiss ideas they never wanted (such as research shortlist candidates) without calling it a drop, and to see why ideas ended.
+
+## D25 · 2026-11-23 · Scintle reads only Claude's folder unless the person adds one
+
+**Decision:**
+- Scintle always reads `~/.claude`: transcripts, `~/.claude/plans`, and prompt history once that's built.
+- Anything else on disk is read only from folders the person adds, like opening a folder in an editor. They add one with "Folders Scintle reads…" in the project menu, or `/scintle:add` run inside the folder.
+- There is no automatic discovery of repos or work folders, including from session working directories and written files. This supersedes D23's discovery.
+- Logo detection (D20) also looks only inside added folders.
+- **What's read in an added folder:** top-level Markdown (minus boilerplate such as CHANGELOG, LICENSE, CLAUDE.md), plan-like folders, and plan-like file names anywhere. A generic `docs/` folder is not read wholesale.
+- **Removing a folder** forgets its document text; ideas and their events stay. A document that no longer matches and was never sent to the model is dropped.
+- The folders the earlier automatic reader had used were listed once, so the person can see and remove them.
+
+**Why:** the user raised that scanning beyond Claude's own folder is a privacy breach. No reliable "workspace" exists to find anyway.
+
+**Cost:** a thinner first board for people who keep plans in their repos. Project names in the menu still come from where transcripts ran, which is Claude's own record and not a disk scan.
+
+## D26 · 2026-11-24 · Opt-in daily usage count, with no ID and only totals kept
+
+**Decision:**
+- **Off until the person says yes.** The board asks once ("Share an anonymous daily usage count?"), linking to the exact message. Ignoring the question counts as no. `DO_NOT_TRACK`, `SCINTLE_TELEMETRY_DISABLED=1` or `CI` override a yes.
+- **What's sent:** at most one message per UTC day, sent by `scintled` (never by hooks or the board page), with a 3 s timeout and no retry. These fields and nothing else:
+  ```json
+  { "schema": 1, "event": "daily_active", "version": "0.4", "os": "darwin", "arch": "arm64",
+    "new_install": false, "first_this_week": true, "first_this_month": false, "install_month": "2026-10" }
+  ```
+  - `version` is major.minor only;
+  - `os` and `arch` come from fixed lists;
+  - `install_month` stops being sent after 6 months.
+- **No ID.** Each machine keeps its own marks: first message ever, first this ISO week, first this month (Brave's usage-ping technique). Daily users = messages that day; weekly and monthly users = the sums of those marks. A local `last_ping_date` plus a lock stops a second message on the same day.
+- **The collector keeps totals only:** a first-party Cloudflare Worker on the free plan, with code in this repo.
+  - Each message adds 1 to that day's counters in D1, split by version, OS, arch and install month; the message itself is never stored.
+  - Logging is off. The IP, headers and Cloudflare's location data are never read or stored.
+  - Bodies over 1 KB, and values outside the published lists, are rejected.
+- **A public page of totals** that hides any group under 10 installs.
+- **Anyone can check it:**
+  - `scintle telemetry status|enable|disable`; disabling deletes the local marks;
+  - `SCINTLE_TELEMETRY_DEBUG=1` prints the message instead of sending it;
+  - the board shows the last message sent;
+  - the schema is one file in the repo, and a test fails if the client and Worker disagree;
+  - the endpoint is built into releases only, so a clone never sends anything.
+- **Changing the schema** means a new `schema` number and asking again.
+
+**Why:**
+- The user wants very high-level usage numbers without tracking anyone. People keep private ideas in Scintle, so they may object to any kind of tracking.
+- Opt-in follows Go's lesson with privacy-minded developers.
+- First-party collection follows Audacity's and Homebrew's lesson: the backlash was about third-party analytics.
+- Keeping totals only means we never hold one person's message.
+- On the free plan, a flood costs a day of counts, never a bill.
+
+**Cost:**
+- Few people will opt in (Go got about 1,800 a week against a target of about 16,000), so the numbers describe a keen subset.
+- Counts are close estimates: a reinstall or a second machine counts twice.
+- Only the questions we set up tallies for can be answered later.
+- Cloudflare still sees each sender's IP on the way in, so the docs must say "anonymous", never "untraceable".
+
+**Open:**
+- Whether D1's EU location option works on the free plan.
+- A lawyer's read on EU ePrivacy Art. 5(3) before inviting EU users at scale.
+
+Research: `~/Workspace/reports/Privacy first telemetry for Scintle.md`.
+
+## D27 · 2026-11-24 · Data stays in `~/.local/share/scintle`; releases ship as a zip
+
+**Decision:**
+- **Data folder:** Scintle's database stays in `~/.local/share/scintle` (or `$XDG_DATA_HOME/scintle`, or `SCINTLE_HOME`), not Claude Code's `${CLAUDE_PLUGIN_DATA}`.
+  - Uninstalling the plugin leaves this folder in place.
+  - `scintle forget --yes` deletes it, and only if it holds Scintle's files.
+- **Releases:** each release is a zip attached to a GitHub release, built by `scripts/build-release.sh` (vibesenpai's D69 pattern). `marketplace.json` points at it with an `archive` source pinned by sha256.
+  - The zip holds the runtime files plus a four-line `package.json`.
+  - It has no lockfile and no dev dependencies, so Claude Code installs nothing extra.
+- **Launcher:** hooks and commands run `server/run.mjs`, which is plain JavaScript.
+  - It checks for Node 22.13 or newer before loading any TypeScript.
+  - An old Node gets a sentence, and a missing Node gets a SessionStart message, instead of failing silently.
+
+**Why:**
+- **Data folder** (research 2026-11-24): tools that keep data people can't get back (claude-mem, episodic-memory, Claude Code UI, Crystal, Vibe Kanban, Claude Code itself) all keep it in a home folder they own.
+  - `${CLAUDE_PLUGIN_DATA}` is documented for caches and `node_modules`, and is deleted on uninstall.
+  - It is also named per plugin@marketplace, so a dev install and a release install would see different stores.
+- **Zip:** an install from the repo would copy dev files, and a lockfile can trigger an automatic npm install.
+
+**Cost:**
+- Uninstalling leaves data behind until `scintle forget` is run; the docs say so.
+- The missing-Node message repeats at every session start until Node is installed.
+
+## D28 · 2026-11-24 · The pitch: "Your AI chats, turned into a history of your ideas."
+
+**Decision:**
+- **Hero line:** "Your AI chats, turned into a history of your ideas."
+- **Subhead:** it keeps each idea's story, how it started, changed and ended up, so you can pick any idea back up where you left it.
+- **Kept general on purpose:** the pitch doesn't name Claude Code.
+- **Internal guard:** "An idea board that keeps itself, with each idea's history behind every card" stays as the positioning guard in `spec.md`.
+
+**Why** (research 2026-11-24, `~/Workspace/reports/Scintle pitch angle.md`):
+- Plain headlines that name what goes in and what comes out beat clever or emotional ones for developer tools.
+- Builders' own words are about picking up where they left off and hating manual tracking, not rediscovery or nostalgia.
+- "Amazing" was dropped as the marketing language HN discounts.
+
+**Not chosen as the headline:**
+- Rediscover, keep track and nostalgia had the weakest evidence among experienced developers.
+- Loss ("your ideas outlive your chats") is kept for the subhead and launch story: Scintle keeps ideas, not transcripts.
+
+**Open:** the evidence covered HN and GitHub only, so vibe coders are untested. The beta headline test compares this line with one emotional variant ("Whatever happened to that idea?").
+
+## D29 · 2026-11-24 · `npx scintle install` is the default install command
+
+**Decision:**
+- The docs and landing page lead with `npx scintle install`.
+- The npm package (`npm/`, name `scintle`, free on npm as of 2026-11-24) holds no plugin code. It:
+  - checks for Node 22.13+ and Claude Code 2.1.292+;
+  - prints Claude Code's own install command;
+  - asks `[y/N]`, then runs that command.
+  - With no terminal attached it runs only with `--yes`.
+- No postinstall script, and the package writes nothing itself.
+- **Fallbacks:** `claude plugin install scintle --marketplace scintle/scintle`, or `/plugin` inside Claude Code.
+
+**Why:**
+- It's short and doesn't name a harness, which fits D28's generic pitch.
+- It's vibesenpai's D74 pattern, already used there, including the test suite (`test/npm-install.spec.ts`).
+
+**Cost:**
+- One more thing to publish on every release, and an npm account to own the name.
+- Publishing is the owner's step.

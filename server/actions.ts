@@ -1,7 +1,7 @@
 /** Everything a person can do to the ledger. Each action returns the undo that reverses it. */
 
 import { transact, type Db } from './store/db.ts';
-import { addEvent, createIdea, getIdea, reproject, type EventRow, type EventType } from './store/ledger.ts';
+import { addEvent, createIdea, DROP_REASONS, getIdea, reproject, type EventRow, type EventType } from './store/ledger.ts';
 
 export type Undo = { kind: 'set-state'; event: number; state: string } | { kind: 'remove-event'; event: number } | { kind: 'none' };
 export type ActionResult = { ok: true; undo: Undo; id?: string | number } | { ok: false; error: string };
@@ -56,15 +56,17 @@ export function renameIdea(db: Db, ideaId: string, title: string): ActionResult 
   return { ok: true, undo: { kind: 'remove-event', event: id } };
 }
 
-export function moveStage(db: Db, ideaId: string, type: EventType, why: string): ActionResult {
+export function moveStage(db: Db, ideaId: string, type: EventType, why: string, reason = ''): ActionResult {
   if (!STAGE_MOVES.has(type) || getIdea(db, ideaId) === undefined) return { ok: false, error: 'not a stage move' };
-  const id = addEvent(db, { ideaId, type, ts: now(), origin: 'user', payload: why.trim() === '' ? {} : { why: why.trim() } });
+  if (reason !== '' && (type !== 'dropped' || !DROP_REASONS.has(reason))) return { ok: false, error: 'not a reason for dropping' };
+  const payload = { ...(why.trim() ? { why: why.trim() } : {}), ...(reason ? { reason } : {}) };
+  const id = addEvent(db, { ideaId, type, ts: now(), origin: 'user', payload });
   return { ok: true, undo: { kind: 'remove-event', event: id } };
 }
 
 /** Merges are only ever applied here, on a person's yes (context/extraction.md). */
 export function answerQuestion(db: Db, id: number, answer: string): ActionResult {
-  const q = db.prepare('SELECT * FROM questions WHERE id = ?').get(id) as { kind: string; payload: string } | undefined;
+  const q = db.prepare('SELECT * FROM questions WHERE id = ?').get(id) as { kind: string; payload: string; idea_id: string | null } | undefined;
   if (q === undefined) return { ok: false, error: 'no such question' };
   const p = JSON.parse(q.payload) as { parents?: string[]; into?: { title?: string; problem?: string } | string; event?: number };
   transact(db, () => {
@@ -78,12 +80,20 @@ export function answerQuestion(db: Db, id: number, answer: string): ActionResult
         db.prepare("INSERT INTO links (from_idea, to_idea, type, event_id) VALUES (?, ?, 'merge', ?)").run(parent, child, ev);
       }
     }
+    // "Is this idea back?" A yes reopens it the way the person would from the stage menu.
+    if (q.kind === 'alive' && answer === 'yes' && q.idea_id) {
+      const stage = getIdea(db, q.idea_id)?.stage;
+      const type = stage === 'parked' ? 'resumed' : stage && ['released', 'dropped', 'evolved'].includes(stage) ? 'revived' : null;
+      if (type) addEvent(db, { ideaId: q.idea_id, type, ts: now(), origin: 'user', payload: { why: 'Picked back up' } });
+    }
     if (q.kind === 'pivot-or-narrow' && p.event !== undefined) {
       if (answer === 'keep') setState(db, p.event, 'confirmed');
       if (answer === 'remove') setState(db, p.event, 'removed');
     }
-    db.prepare("UPDATE questions SET state = ?, payload = json_set(payload, '$.answer', ?) WHERE id = ?")
-      .run(answer === 'later' ? 'deferred' : 'answered', answer, id);
+    // One answer settles every open "is it back?" about the same idea.
+    const same = q.kind === 'alive' && q.idea_id ? "kind = 'alive' AND idea_id = ? AND state = 'open'" : 'id = ?';
+    db.prepare(`UPDATE questions SET state = ?, payload = json_set(payload, '$.answer', ?) WHERE ${same}`)
+      .run(answer === 'later' ? 'deferred' : 'answered', answer, q.kind === 'alive' && q.idea_id ? q.idea_id : id);
   });
   return { ok: true, undo: { kind: 'none' } };
 }

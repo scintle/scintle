@@ -1,0 +1,16 @@
+name: Feedback or an idea
+description: What works, what doesn't, what you wish it did.
+labels: [feedback]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your feedback
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where do you use Claude Code?
+      multiple: true
+      options: [Terminal, Desktop app, VS Code or Cursor, JetBrains, Other]

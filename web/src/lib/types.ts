@@ -8,7 +8,10 @@ export type Idea = {
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+  resolution: Resolution | null;
 };
+
+export type Resolution = 'released' | 'pivoted' | 'merged' | 'not-interested' | 'crowded' | 'no-demand' | 'not-feasible' | 'other';
 
 export type RawEvent = {
   id: number;
@@ -22,6 +25,8 @@ export type RawEvent = {
   session_id: string | null;
   turn_seq: number | null;
   quote: string | null;
+  /** Who the quote is from; null when the source was gone before this was recorded. */
+  quote_by: 'you' | 'claude' | 'document' | null;
   excerpt: string | null;
   supersedes: number | null;
   superseded: number;
@@ -32,7 +37,7 @@ export type Ev = Omit<RawEvent, 'payload' | 'superseded'> & { payload: Record<st
 export type Link = { id: number; from_idea: string; to_idea: string; type: 'pivot' | 'spawn' | 'merge'; event_id: number | null };
 export type Question = { id: number; idea_id: string | null; kind: string; payload: string; session_id: string | null };
 export type Job = { id: number; kind: string; idea_id: string | null; status: 'running' | 'done' | 'failed'; started_at: string; finished_at: string | null; output_path: string | null; error: string | null };
-export type Source = { state: 'live' | 'expiring' | 'deleted' | 'none'; expiresInDays?: number; project: string | null };
+export type Source = { state: 'live' | 'expiring' | 'deleted' | 'none'; expiresInDays?: number; project: string | null; doc?: string };
 
 export type Snapshot = {
   ideas: Idea[];
@@ -50,6 +55,14 @@ export type Snapshot = {
   readError: { message: string; at: string; capped: boolean } | null;
   consent: boolean;
   logos: Record<string, string>;
+  folders: { path: string; docs: number }[];
+  telemetry: {
+    consent: 'yes' | 'no' | null;
+    blockedBy: null | 'not-asked' | 'declined' | 'DO_NOT_TRACK' | 'SCINTLE_TELEMETRY_DISABLED' | 'CI' | 'no-endpoint';
+    next: Record<string, unknown>;
+    lastPayload: Record<string, unknown> | null;
+    lastSentAt: string | null;
+  };
 };
 
 export type Undo = { kind: 'set-state'; event: number; state: string } | { kind: 'remove-event'; event: number } | { kind: 'none' };

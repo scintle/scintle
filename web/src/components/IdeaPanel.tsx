@@ -42,6 +42,10 @@ export function IdeaPanel({ idea, events }: { idea: Idea; events: Ev[] }) {
   return (
     <aside className="panel" aria-label={`Idea ${idea.title}`}>
       <div className="panel-head">
+        <button className="back" onClick={() => select(null)} title="Back to all ideas (Esc)">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          All ideas
+        </button>
         <div className="row">
           <StageMenu idea={idea} />
           <span className="eyebrow">{idea.id}</span>
@@ -49,7 +53,6 @@ export function IdeaPanel({ idea, events }: { idea: Idea; events: Ev[] }) {
           {!ownLogo && (
             <button className="btn ghost small" title="Ask Claude for another logo" onClick={() => void act(`/api/ideas/${idea.id}/logo`, {}, 'Drawing a new logo')}>New logo</button>
           )}
-          <button className="btn ghost small" onClick={() => select(null)} aria-label="Close panel">✕</button>
         </div>
         <h2><IdeaMark color={`var(--s-${idea.stage})`} logo={snap?.logos[idea.id]} size={28} />{idea.title}</h2>
         {names.length > 1 && <div className="names">formerly {names.slice(0, -1).join(' → ')}</div>}

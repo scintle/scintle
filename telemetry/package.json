@@ -1,0 +1,13 @@
+{
+  "name": "scintle-telemetry",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "migrate:local": "wrangler d1 migrations apply scintle-telemetry --local",
+    "deploy": "wrangler d1 migrations apply scintle-telemetry --remote && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.159.0"
+  }
+}

@@ -1,6 +1,7 @@
 /** The board's snapshot: everything the UI draws, in one read. Small enough at 200 ideas / 5k events. */
 
-import { statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import type { Db } from './store/db.ts';
 import { DAILY_CALL_CAP, usageToday } from './store/upkeep.ts';
 
@@ -9,10 +10,17 @@ const DAY = 86_400_000;
 
 type SourceState = 'live' | 'expiring' | 'deleted' | 'none';
 
-function sourceStates(db: Db): Record<string, { state: SourceState; expiresInDays?: number; project: string | null }> {
-  const rows = db.prepare('SELECT id, transcript_path, project FROM sessions').all() as { id: string; transcript_path: string; project: string | null }[];
-  const out: Record<string, { state: SourceState; expiresInDays?: number; project: string | null }> = {};
+type Source = { state: SourceState; expiresInDays?: number; project: string | null; doc?: string };
+
+function sourceStates(db: Db): Record<string, Source> {
+  const rows = db.prepare('SELECT id, harness, transcript_path, project FROM sessions').all() as { id: string; harness: string; transcript_path: string; project: string | null }[];
+  const out: Record<string, Source> = {};
   for (const r of rows) {
+    // A saved document never expires with the 30-day cleanup; it is live while the file exists.
+    if (r.harness === 'doc') {
+      out[r.id] = { state: existsSync(r.transcript_path) ? 'live' : 'deleted', project: r.project, doc: r.transcript_path.replace(homedir(), '~') };
+      continue;
+    }
     try {
       // Claude Code's cleanup keys on the file's last write.
       const left = RETENTION_DAYS - Math.floor((Date.now() - statSync(r.transcript_path).mtimeMs) / DAY);

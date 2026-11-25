@@ -4,6 +4,7 @@
  */
 
 import { existsSync, readdirSync, statSync } from 'node:fs';
+import { folderOf } from './ingest/docs.ts';
 import { homedir } from 'node:os';
 import { dirname, extname, join, relative } from 'node:path';
 import type { Db } from './store/db.ts';
@@ -80,13 +81,14 @@ function ideaRoot(db: Db, ideaId: string): string | undefined {
      WHERE e.idea_id = ? AND e.state != 'removed' AND e.turn_seq IS NOT NULL`,
   ).all(ideaId) as { session_id: string; turn_seq: number; cwd: string | null }[];
   const votes = new Map<string, number>();
+  // Only folders the person added are looked in (D25).
   const vote = (dir: string, weight: number): void => {
     const r = gitRoot(dir);
-    if (r) votes.set(r, (votes.get(r) ?? 0) + weight);
+    if (r && folderOf(db, r)) votes.set(r, (votes.get(r) ?? 0) + weight);
   };
   const near = db.prepare('SELECT files_written FROM turns WHERE session_id = ? AND seq BETWEEN ? AND ?');
   for (const a of anchors) {
-    if (a.cwd && gitRoot(a.cwd)) { vote(a.cwd, 3); continue; }
+    if (a.cwd && folderOf(db, a.cwd) && gitRoot(a.cwd)) { vote(a.cwd, 3); continue; }
     for (const r of near.all(a.session_id, a.turn_seq - NEAR_TURNS, a.turn_seq + NEAR_TURNS) as { files_written: string }[]) {
       for (const f of JSON.parse(r.files_written) as string[]) vote(dirname(f), 1);
     }

@@ -7,6 +7,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
+import { homedir } from 'node:os';
 import * as actions from './actions.ts';
 import { ask } from './ask.ts';
 import { logoFor } from './logos.ts';
@@ -15,9 +16,13 @@ import { saveBrief } from './brief.ts';
 import { startResearch } from './jobs/research.ts';
 import { dataDir } from './lib/config.ts';
 import { writeAtomic, writeJson } from './lib/files.ts';
+import { diagnostics } from './diagnostics.ts';
+import { maybePing, setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
 import { Live, waiting } from './live.ts';
 import { snapshot } from './state.ts';
 import { openDb } from './store/db.ts';
+import { reprojectAll } from './store/ledger.ts';
+import { addFolder, folders, listEarlierFolders, removeFolder } from './ingest/docs.ts';
 import { consented, purgeDeleted, setConsent, skipHistory } from './store/upkeep.ts';
 import type { EventType } from './store/ledger.ts';
 
@@ -116,8 +121,20 @@ async function drawMissing(): Promise<void> {
 }
 const failedLogos = new Set<string>();
 
+/** Added folders with how many of their documents are on record, for the Folders dialog. */
+function folderList(): { path: string; docs: number }[] {
+  const count = db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE harness = 'doc' AND text_stored = 1 AND (transcript_path = ? OR transcript_path LIKE ? || '/%')");
+  return folders(db).map((path) => ({ path: path.replace(homedir(), '~'), docs: (count.get(path, path) as { n: number }).n }));
+}
+
 const routes: [string, RegExp, Handler][] = [
-  ['GET', /^\/api\/state$/, () => ({ ...snapshot(db), version, extracting: live.extracting ?? null, waiting: waiting(db), progress: live.progress, readError: live.lastError, consent: consented(db), logos: logos() })],
+  ['GET', /^\/api\/state$/, () => ({ ...snapshot(db), version, extracting: live.extracting ?? null, waiting: waiting(db), progress: live.progress, readError: live.lastError, consent: consented(db), logos: logos(), folders: folderList(), telemetry: telemetryStatus() })],
+  ['GET', /^\/api\/diagnostics$/, async () => ({ text: await diagnostics(db, live.lastError?.message ?? null) })],
+  ['POST', /^\/api\/telemetry$/, ({ b }) => {
+    setTelemetry(b['on'] === true);
+    changed();
+    return { ok: true };
+  }],
   ['POST', /^\/api\/consent$/, ({ b }) => {
     const mode = str(b['mode']);
     if (mode === 'off') { setConsent(db, false); return { ok: true, sessions: 0 }; }
@@ -126,6 +143,16 @@ const routes: [string, RegExp, Handler][] = [
     return { ok: true, sessions: live.catchUp() };
   }],
   ['POST', /^\/api\/sync$/, () => ({ ok: true, sessions: live.catchUp() })],
+  ['POST', /^\/api\/folders$/, ({ b }) => {
+    const r = addFolder(db, str(b['path']));
+    if (r.ok) live.rescan();
+    return r.ok ? { ok: true, path: r.path, undo: { kind: 'none' } } : r;
+  }],
+  ['POST', /^\/api\/folders\/remove$/, ({ b }) => {
+    const forgotten = removeFolder(db, str(b['path']));
+    live.changed();
+    return { ok: true, forgotten, undo: { kind: 'none' } };
+  }],
   ['POST', /^\/api\/sync\/dismiss$/, () => { live.lastError = null; return { ok: true }; }],
   ['POST', /^\/api\/hook$/, ({ b }) => {
     live.onHook(str(b['event']), str(b['transcript_path']));
@@ -133,7 +160,7 @@ const routes: [string, RegExp, Handler][] = [
   }],
   ['POST', /^\/api\/ideas$/, ({ b }) => actions.newIdea(db, str(b['title']), str(b['problem']))],
   ['POST', /^\/api\/ideas\/(I-\d+)\/rename$/, ({ b, m }) => actions.renameIdea(db, m[1] as string, str(b['title']))],
-  ['POST', /^\/api\/ideas\/(I-\d+)\/stage$/, ({ b, m }) => actions.moveStage(db, m[1] as string, str(b['type']) as EventType, str(b['why']))],
+  ['POST', /^\/api\/ideas\/(I-\d+)\/stage$/, ({ b, m }) => actions.moveStage(db, m[1] as string, str(b['type']) as EventType, str(b['why']), str(b['reason']))],
   ['POST', /^\/api\/ideas\/(I-\d+)\/brief$/, ({ m }) => saveBrief(db, m[1] as string) ?? { ok: false, error: 'no such idea' }],
   ['POST', /^\/api\/ideas\/(I-\d+)\/logo$/, ({ m }) => {
     const id = m[1] as string;
@@ -217,6 +244,7 @@ function shutdown(): void {
 
 setInterval(() => {
   if (purgeDeleted(db) > 0) changed();
+  void maybePing();
 }, 3_600_000).unref();
 setInterval(() => void drawMissing(), 20_000).unref();
 
@@ -231,6 +259,9 @@ process.on('SIGINT', shutdown);
 // Jobs that were running when the last server died will never finish.
 db.prepare("UPDATE jobs SET status = 'failed', error = 'server stopped' WHERE status = 'running'").run();
 purgeDeleted(db);
+reprojectAll(db);
+listEarlierFolders(db);
 listen(PORT, 10);
+void maybePing();
 // Index transcripts at start so the board can say what a first read would cost. No model calls.
 setImmediate(() => live.rescan());

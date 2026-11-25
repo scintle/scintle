@@ -93,8 +93,9 @@ export function Consent({ onDone }: { onDone?: () => void }) {
       <h2>Start analyzing your sessions</h2>
       <p>Scintle keeps each idea's story by reading your Claude Code sessions with your own Claude Code login. Nothing is read until you say so.</p>
       <ul className="consent-list">
-        <li><b>Your history:</b> {w.sessions > 0 ? <>{w.sessions} {w.sessions === 1 ? 'session' : 'sessions'}, about {w.chunks} model {w.chunks === 1 ? 'call' : 'calls'} and {minutes((w.chunks * SECONDS_PER_CHUNK) / 60)}.</> : 'nothing waiting.'}</li>
+        <li><b>Your history:</b> {w.sessions > 0 ? <>{w.sessions} {w.sessions === 1 ? 'session' : 'sessions'}, about {w.chunks} model {w.chunks === 1 ? 'call' : 'calls'} on your Claude plan and {minutes((w.chunks * SECONDS_PER_CHUNK) / 60)}{w.chunks > snap.calls.cap ? <>, spread over {Math.ceil(w.chunks / snap.calls.cap)} days by the daily cap</> : null}.</> : 'nothing waiting.'}</li>
         <li><b>New sessions:</b> read in batches, about 3 calls per working session.</li>
+        <li><b>What's read:</b> only Claude's own folder (<code>~/.claude</code>): sessions and saved plans. Other folders only if you add them.</li>
         <li><b>What's sent:</b> what you said and what Claude answered, with secrets redacted first. A daily cap of {snap.calls.cap} calls applies.</li>
       </ul>
       <div className="acts center">

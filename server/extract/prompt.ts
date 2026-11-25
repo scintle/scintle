@@ -21,6 +21,8 @@ Identity rules:
 - released {why}: the idea reached users: a release was published, a package published, a launch or
   production deploy happened. "[ran]" lines show commands that did this and are strong evidence; quote
   them. Intending or preparing to ship is not released. Released ideas can keep evolving afterwards.
+- dropped {why, reason}: reason is "crowded" (others already do it well), "no-demand" (the pain was not strong
+  enough), "not-feasible" (too hard or blocked) or "other". Never "not-interested": only the builder says that.
 - Lifecycle: parked {why} (not now), resumed {why}, dropped {why} (let go
   deliberately), revived {why}, planned {plan} (an implementation plan was made), building {evidence}
   (implementation started), researched {report}, attached {file} (a doc about the idea was written; use the
@@ -41,6 +43,11 @@ Granularity: this is the idea's story, not a project log.
 - building: once, when implementation of the idea first starts. planned: only a plan for the idea as a
   whole, not each coding task. attached: a spec, report or research doc about the idea, not code.
 - At most 4 events per slice; keep the most consequential.
+
+Documents:
+- A DOCUMENT is a saved plan, spec or report (a digest: title, headings, each section's opening). Its subject is an idea:
+  match it to an existing idea by problem, or add a new one. Record what it settles (decided, narrowed, planned, tried)
+  and an attached {file} event with its path. Quote from the digest.
 
 Evidence:
 - seq: the [seq] of the turn that shows the event. quote: an exact substring of that turn, 3-25 words,
@@ -77,7 +84,8 @@ function turnsSection(turns: readonly SegTurn[]): string {
   return turns
     .map((t) => {
       const wrote = t.files.length > 0 ? `\n  wrote: ${t.files.join(', ')}` : '';
-      return `[${t.seq}] ${t.role === 'user' ? 'BUILDER' : t.role === 'command' ? 'COMMAND' : 'ASSISTANT'}: ${forPrompt(t)}${wrote}`;
+      const who = t.role === 'user' ? 'BUILDER' : t.role === 'command' ? 'COMMAND' : t.role === 'doc' ? `DOCUMENT (saved ${t.ts?.slice(0, 10) ?? 'earlier'}, path ${t.files[0] ?? ''})` : 'ASSISTANT';
+      return `[${t.seq}] ${who}: ${forPrompt(t)}${wrote}`;
     })
     .join('\n\n');
 }

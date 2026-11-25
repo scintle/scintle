@@ -1,7 +1,7 @@
 /** Applies a sanitized extraction under rules the model is not trusted with (context/extraction.md). */
 
 import { transact, type Db } from '../store/db.ts';
-import { addEvent, addLink, createIdea, getIdea } from '../store/ledger.ts';
+import { addEvent, addLink, createIdea, getIdea, type QuoteBy } from '../store/ledger.ts';
 import type { Extraction } from './schema.ts';
 import type { SegTurn } from './segment.ts';
 
@@ -19,13 +19,15 @@ function excerpt(turns: readonly SegTurn[], seq: number): string {
   return text.length <= EXCERPT_MAX ? text : `${text.slice(0, EXCERPT_MAX)} …`;
 }
 
+const speaker = (role: string): QuoteBy => (role === 'assistant' ? 'claude' : role === 'doc' ? 'document' : 'you');
+
 export function applyExtraction(db: Db, sessionId: string, turns: readonly SegTurn[], x: Extraction): ApplyResult {
   const result: ApplyResult = { ideas: 0, events: 0, dropped: [], question: false };
   const bySeq = new Map(turns.map((t) => [t.seq, t]));
-  const evidence = (seq: number, quote: string): { ts: string; quote: string; excerpt: string } | undefined => {
+  const evidence = (seq: number, quote: string): { ts: string; quote: string; quoteBy: QuoteBy; excerpt: string } | undefined => {
     const t = bySeq.get(seq);
     if (t === undefined || !flat(t.text).includes(flat(quote)) || flat(quote) === '') return undefined;
-    return { ts: t.ts ?? new Date().toISOString(), quote: flat(quote), excerpt: excerpt(turns, seq) };
+    return { ts: t.ts ?? new Date().toISOString(), quote: flat(quote), quoteBy: speaker(t.role), excerpt: excerpt(turns, seq) };
   };
 
   const mergeTargets = new Set(x.events.filter((e) => e.type === 'merged').map((e) => String(e.payload['into'] ?? '')));
@@ -67,6 +69,8 @@ export function applyExtraction(db: Db, sessionId: string, turns: readonly SegTu
         continue;
       }
       const payload = { ...e.payload };
+      // Only the person may say they were not interested (D24).
+      if (e.type === 'dropped' && payload['reason'] === 'not-interested') payload['reason'] = 'other';
       const linked = e.type === 'pivoted' || e.type === 'spawned' ? resolve(String(payload['to'] ?? '')) : undefined;
       if ((e.type === 'pivoted' || e.type === 'spawned') && (linked === undefined || linked === ideaId)) {
         result.dropped.push(`${e.type} on ${e.idea}: target ${String(payload['to'])} ${linked === ideaId ? 'is itself' : 'unknown'}`);
@@ -93,6 +97,8 @@ export function applyExtraction(db: Db, sessionId: string, turns: readonly SegTu
 function ask(db: Db, sessionId: string, ideaId: string | null, kind: string, payload: object): boolean {
   const open = db.prepare("SELECT 1 FROM questions WHERE session_id = ? AND state = 'open'").get(sessionId);
   if (open !== undefined) return false;
+  // "Is this idea back?" is asked once per idea until answered, however many sessions raise it.
+  if (kind === 'alive' && db.prepare("SELECT 1 FROM questions WHERE kind = 'alive' AND idea_id IS ? AND state = 'open'").get(ideaId)) return false;
   db.prepare('INSERT INTO questions (idea_id, kind, payload, session_id, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(ideaId, kind, JSON.stringify(payload), sessionId, new Date().toISOString());
   return true;

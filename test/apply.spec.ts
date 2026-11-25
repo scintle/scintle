@@ -106,3 +106,52 @@ describe('self-links', () => {
     expect(getIdea(db, 'I-001')?.stage).toBe('seed');
   });
 });
+
+describe('ended reasons', () => {
+  it('records the reason on a drop, clears it on revive, and keeps "not interested" for the person only', async () => {
+    const { moveStage } = await import('../server/actions.ts');
+    applyExtraction(db, 's', TURNS, x({ new_ideas: [born] }));
+    expect(moveStage(db, 'I-001', 'dropped', '', 'not-interested').ok).toBe(true);
+    expect(getIdea(db, 'I-001')).toMatchObject({ stage: 'dropped', resolution: 'not-interested' });
+    expect(moveStage(db, 'I-001', 'parked', '', 'crowded').ok).toBe(false);
+    addEvent(db, { ideaId: 'I-001', type: 'revived', ts: '2026-11-25T10:00:00.000Z', origin: 'user' });
+    expect(getIdea(db, 'I-001')?.resolution).toBeNull();
+    applyExtraction(db, 's', TURNS, x({ events: [{ idea: 'I-001', type: 'dropped', payload: { reason: 'not-interested' }, confidence: 0.9, seq: 3, quote: 'forget ideas' }] }));
+    const inferred = liveEvents(db, 'I-001').find((e) => e.type === 'dropped' && e.origin === 'inferred');
+    expect(JSON.parse(inferred?.payload ?? '{}')).toMatchObject({ reason: 'other' });
+  });
+});
+
+describe('is this idea back?', () => {
+  it('revives a dropped idea on yes, and leaves it on no', async () => {
+    const { answerQuestion, moveStage } = await import('../server/actions.ts');
+    applyExtraction(db, 's', TURNS, x({ new_ideas: [born] }));
+    moveStage(db, 'I-001', 'dropped', '', 'crowded');
+    const ask = (): number => (db.prepare("INSERT INTO questions (idea_id, kind, payload, created_at) VALUES ('I-001', 'alive', '{}', '2026-11-25') RETURNING id").get() as { id: number }).id;
+    answerQuestion(db, ask(), 'no');
+    expect(getIdea(db, 'I-001')?.stage).toBe('dropped');
+    answerQuestion(db, ask(), 'yes');
+    expect(getIdea(db, 'I-001')?.stage).not.toBe('dropped');
+  });
+});
+
+describe('one answer per idea', () => {
+  it('settles every open "is it back?" question about the same idea', async () => {
+    const { answerQuestion } = await import('../server/actions.ts');
+    applyExtraction(db, 's', TURNS, x({ new_ideas: [born] }));
+    const ask = (): number => (db.prepare("INSERT INTO questions (idea_id, kind, payload, created_at) VALUES ('I-001', 'alive', '{}', '2026-11-25') RETURNING id").get() as { id: number }).id;
+    const first = ask();
+    ask();
+    answerQuestion(db, first, 'no');
+    expect(db.prepare("SELECT COUNT(*) AS n FROM questions WHERE state = 'open'").get()).toEqual({ n: 0 });
+  });
+});
+
+describe('who said it', () => {
+  it('keeps the speaker of each quote with the event', () => {
+    applyExtraction(db, 's', TURNS, x({ new_ideas: [born], events: [{ idea: 'new:1', type: 'decided', payload: {}, confidence: 0.9, seq: 1, quote: 'an idea ledger' }] }));
+    const [first, second] = liveEvents(db, 'I-001');
+    expect(first?.quote_by).toBe('you');
+    expect(second?.quote_by).toBe('claude');
+  });
+});

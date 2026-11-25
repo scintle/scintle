@@ -33,6 +33,8 @@ test.afterAll(() => {
 
 async function open(page: Page): Promise<void> {
   await page.goto(`${base}/?t=${token}`);
+  // Lineage is the default page; these flows start on the Board.
+  await page.getByRole('navigation', { name: 'Page' }).getByRole('button', { name: 'Board' }).click();
   await expect(page.locator('.card').first()).toBeVisible();
 }
 
@@ -50,6 +52,7 @@ test('A stage move can be undone from the toast', async ({ page }) => {
   await page.locator('.card', { hasText: 'Trail alerts' }).click();
   await page.getByRole('complementary').getByRole('button', { name: /Seed/ }).click();
   await page.getByRole('menuitem', { name: /Drop/ }).click();
+  await page.getByRole('menuitem', { name: /Crowded market/ }).click();
   await expect(page.getByText('Closed ·')).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByRole('region', { name: 'Seed' }).getByText('Trail alerts')).toBeVisible();
@@ -96,4 +99,46 @@ test('Lineage: River and Constellation draw every idea and open one on click', a
   await expect(page.locator('.cnode').first()).toBeVisible();
   await page.locator('.cnode').first().click();
   await expect(page.getByRole('complementary').locator('h2')).toBeVisible();
+});
+
+test('Lineage filters: status chips narrow the lanes, and a date range re-scales the axis', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Lineage' }).click();
+  await page.getByRole('button', { name: 'River' }).click();
+  const lanes = page.locator('.g-idea');
+  await expect(lanes.first()).toBeVisible();
+  const total = await lanes.count();
+  await page.locator('.chip.ended').click();
+  await expect(lanes).toHaveCount(0);
+  await page.getByRole('button', { name: /ideas$/ }).click();
+  await expect(lanes).toHaveCount(total);
+  await page.locator('.range .chip').click();
+  await page.getByRole('menuitemradio', { name: 'Last 7 days' }).click();
+  await expect(page.locator('.range .chip')).toContainText('Last 7 days');
+  await page.locator('.range .chip').click();
+  await page.getByRole('menuitemradio', { name: 'All time' }).click();
+});
+
+test('Usage sharing: off until turned on, shows the exact message, and a dev build never sends', async ({ page }) => {
+  await open(page);
+  await page.getByLabel('Project').selectOption({ label: 'Usage sharing…' });
+  const dialog = page.getByRole('dialog', { name: 'Usage sharing' });
+  await expect(dialog.getByText('Nothing is sent until you say yes')).toBeVisible();
+  await expect(dialog.locator('pre.json').first()).toContainText('"event": "daily_active"');
+  await dialog.getByRole('button', { name: 'Turn on' }).click();
+  await expect(dialog.getByText('this build has no collector address')).toBeVisible();
+  expect(JSON.parse(readFileSync(join(home, 'telemetry.json'), 'utf8'))).toMatchObject({ consent: 'yes' });
+  await dialog.getByRole('button', { name: 'Turn off' }).click();
+  await expect(dialog.getByText('Off. Nothing is sent.')).toBeVisible();
+});
+
+test('Help and feedback: diagnostics show versions and counts, never an idea', async ({ page }) => {
+  await open(page);
+  await page.getByLabel('Project').selectOption({ label: 'Help and feedback…' });
+  const dialog = page.getByRole('dialog', { name: 'Help and feedback' });
+  const diag = dialog.locator('pre.json');
+  await expect(diag).toContainText('Scintle 0.1.0');
+  await expect(diag).toContainText('Ideas:');
+  await expect(diag).not.toContainText('Trail alerts');
+  await expect(dialog.getByRole('link', { name: 'Send feedback' })).toHaveAttribute('href', /github\.com\/scintle\/scintle\/issues/);
 });

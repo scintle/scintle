@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CLOSED_STAGES, isUnsure, leftOff, namesOf, relTime, STAGE_LABEL } from '../lib/derive';
+import { CLOSED_STAGES, leftOff, RESOLUTION_COLOR, RESOLUTION_LABEL, namesOf, relTime, STAGE_LABEL } from '../lib/derive';
 import type { Ev, Idea, Source, Stage } from '../lib/types';
 import { useStore } from '../store';
 import { IdeaMark } from '../components/IdeaMark';
@@ -19,11 +19,10 @@ type CardProps = { idea: Idea; events: Ev[]; sources: Record<string, Source>; lo
 function Card({ idea, events, sources, logo, nameOf }: CardProps) {
   const { selected, select } = useStore();
   const names = namesOf(events, idea);
-  const unsure = events.some(isUnsure);
   const note = sourceNote(events, sources);
   return (
     <button
-      className={`card${unsure ? ' unsure' : ''}`}
+      className="card"
       aria-current={selected === idea.id}
       onClick={() => select(selected === idea.id ? null : idea.id)}
     >
@@ -34,7 +33,11 @@ function Card({ idea, events, sources, logo, nameOf }: CardProps) {
       <p className="left">{leftOff(events, nameOf)}</p>
       <div className="meta">
         <span className="id">{idea.id}</span>
-        {unsure && <span className="pill unsure" title="Scintle isn't sure about part of this idea's story">unsure</span>}
+        {idea.resolution && (
+          <span className="pill" style={{ color: RESOLUTION_COLOR[idea.resolution], borderColor: `color-mix(in srgb, ${RESOLUTION_COLOR[idea.resolution]} 40%, transparent)` }}>
+            {RESOLUTION_LABEL[idea.resolution]}
+          </span>
+        )}
         {note && <span className="pill warn">{note}</span>}
         <span className="grow" />
         <span>{relTime(idea.updated_at)}</span>

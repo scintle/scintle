@@ -5,6 +5,7 @@
 
 import { basename } from 'node:path';
 import { discover, ingestFile } from './ingest/index.ts';
+import { discoverDocs, ingestDocs, pruneDocs } from './ingest/docs.ts';
 import { transcriptRoots } from './lib/config.ts';
 import { extractAll, sessionsToExtract } from './extract/run.ts';
 import { BUDGET_CHARS, pendingSize } from './extract/segment.ts';
@@ -33,7 +34,7 @@ export class Live {
   progress: Progress | null = null;
   lastError: ReadError | null = null;
   private readonly db: Db;
-  private readonly changed: () => void;
+  readonly changed: () => void;
 
   constructor(db: Db, changed: () => void) {
     this.db = db;
@@ -70,6 +71,9 @@ export class Live {
         // A file that vanished or is mid-write is picked up next time.
       }
     }
+    const docs = discoverDocs(this.db);
+    pruneDocs(this.db, docs);
+    ingestDocs(this.db, docs, consented(this.db));
     this.changed();
   }
 

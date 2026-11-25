@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Idea } from '../lib/types';
 import { buildModel } from './model';
 
-const idea = (id: string, ts: string): Idea => ({ id, title: id, problem: '', stage: 'exploring', created_at: ts, updated_at: ts, closed_at: null });
+const idea = (id: string, ts: string): Idea => ({ id, title: id, problem: '', stage: 'exploring', created_at: ts, updated_at: ts, closed_at: null, resolution: null });
 
 describe('lens model time columns', () => {
   it('keeps days after a daylight-saving change on their own columns', () => {

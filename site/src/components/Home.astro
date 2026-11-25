@@ -1,0 +1,340 @@
+---
+// The landing page, in vibesenpai's layout (hero, demo, features, data, FAQ) with the terminal theme. D28 holds the pitch.
+import { Image } from 'astro:assets';
+import Shot from './Shot.astro';
+
+const base = '/scintle';
+const npx = 'npx scintle install';
+const terminal = 'claude plugin install scintle --marketplace scintle/scintle';
+const inside = '/plugin marketplace add scintle/scintle\n/plugin install scintle@scintle';
+
+const values = [
+  {
+    id: 'updates-itself',
+    title: 'Updates itself as you chat',
+    body: 'You never fill it in. Scintle reads your sessions as you work, and new ideas and changes appear on their own.',
+    points: [
+      ['Ideas come from chats you already had', `${base}/start/what-it-is/`],
+      ['One click to keep, fix or remove anything it got wrong', `${base}/using/correcting/`],
+      ['It asks only when it would otherwise guess', `${base}/using/questions/`],
+    ],
+    shot: 'lineage',
+    alt: 'The Lineage view: a dozen made-up ideas over five months, with a pivot, a spawn, a merge, two drops and a release.',
+  },
+  {
+    id: 'replay',
+    title: 'Press play on your ideas',
+    body: 'Replay months of thinking in seconds. Ideas appear the day they were born, branch, merge and end, while the moments that mattered stack up beside them in the words that were said.',
+    points: [
+      ['Replay your whole history, or one project', `${base}/using/views/#replay-and-scrubbing`],
+      ['Drag the timeline to any day and see what you knew then', `${base}/using/views/#replay-and-scrubbing`],
+      ['Bigger moments get a bigger beat', `${base}/using/views/`],
+    ],
+    shot: 'replay',
+    alt: 'A replay in progress: the timeline on the left at early October, and the moments so far on the right, from a release to a dropped idea.',
+  },
+  {
+    id: 'history',
+    title: 'Every idea, with its history',
+    body: 'Each idea keeps one ID through every rename and change of scope. Its timeline shows how it started, what was decided, what was tried, and why it ended.',
+    points: [
+      ['Renamed, narrowed, pivoted, parked, dropped', `${base}/under-the-hood/identity/`],
+      ['The quote behind every step, and who said it', `${base}/using/correcting/`],
+      ['Kept after the chat itself is deleted', `${base}/trust/privacy/`],
+    ],
+    shot: 'panel',
+    alt: 'An idea’s panel: Weekly Pulse, formerly Async status digest, pivoted from Standup bot, with its timeline.',
+  },
+  {
+    id: 'manage',
+    title: 'Manage them like a board',
+    body: 'Every idea on one board, from seed to building. Plan one, park another, drop a third and say why. Filter by project or by how ideas ended.',
+    points: [
+      ['Stages from seed to released, with parked on the side', `${base}/using/views/#board`],
+      ['Drop with a reason: not interested, crowded, no demand', `${base}/using/correcting/#moving-an-idea`],
+      ['Add an idea by hand with one key', `${base}/using/correcting/#adding-an-idea-by-hand`],
+    ],
+    shot: 'board',
+    alt: 'The Board: ideas in columns from seed to building, each showing where it was left off.',
+  },
+  {
+    id: 'pick-up',
+    title: 'Pick up where you left off',
+    body: 'Coming back after a month takes a minute: where each idea stands, what was decided, and which dead ends not to walk again. Hand that history to your planner with one command.',
+    points: [
+      ['Where you left off, on every card', `${base}/using/views/#board`],
+      ['/scintle:plan brings the history into planning', `${base}/using/planning/`],
+      ['Plans link back to the idea they came from', `${base}/using/planning/#the-way-back`],
+    ],
+    shot: 'constellation',
+    alt: 'The Constellation view: ideas as a graph of what is related to what.',
+  },
+];
+
+const terms = [
+  ['Reads only what it should.', 'Your AI’s own folder, plus folders you add yourself. It never scans your disk.'],
+  ['Asks before the first read.', 'You see how many sessions and calls it would take first. Reading uses your own Claude login, with secrets redacted before anything is stored or sent.'],
+  ['Your board lives on your machine.', 'One local database you can delete with one command. Uninstalling never deletes it by accident.'],
+  ['No tracking.', 'An anonymous daily count is off unless you say yes, and has no ID. You can see the exact message before it is ever sent.'],
+];
+
+const faq = [
+  ['What does it cost?', 'Scintle is free and open source. Reading your chats uses model calls on your own Claude plan: about three for a working session. The first read of your history is estimated before it starts, and a daily cap bounds it.'],
+  ['Which AI tools does it read?', 'Claude Code today. More are planned; the reader was built so others can be added.'],
+  ['Does it change my files or settings?', 'No. It only reads, and keeps its own data in one folder.'],
+  ['What if it gets an idea wrong?', 'One click fixes it, and every fix can be undone. It never merges two ideas on its own; it asks.'],
+  ['How do I remove everything?', 'Run /scintle:forget, then uninstall the plugin.'],
+];
+---
+
+<div class="home not-content">
+  <section class="hero">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="copy">
+      <h1 class="rise r1">Your AI chats, turned into a history of your ideas.</h1>
+      <p class="lede rise r2">Scintle keeps the story of every idea: how it started, how it changed, and where it ended up. Nothing to maintain. Pick any idea back up right where you left it.</p>
+      <div class="actions rise r3">
+        <a class="primary" href="#install">Install</a>
+        <a class="quiet" href="#updates-itself">How it works</a>
+      </div>
+      <div class="oneline rise r4">
+        <code><span aria-hidden="true">$ </span>{npx}</code>
+        <button type="button" data-copy={npx} aria-label="Copy the install command">Copy</button>
+      </div>
+    </div>
+    <div class="art rise r5">
+      <video data-demo autoplay muted loop playsinline preload="metadata" width="1440" height="900"
+        poster={`${base}/demo/poster.jpg`}
+        aria-label="Demo: five months of made-up ideas replayed in thirty seconds. Ideas appear on a timeline as they are born, narrowed, pivoted, merged and dropped, while the moments stack up on the right with the words behind each.">
+        <source src={`${base}/demo/scintle-demo.webm`} type="video/webm" />
+        <source src={`${base}/demo/scintle-demo.mp4`} type="video/mp4" />
+      </video>
+    </div>
+  </section>
+
+  {values.map((v, i) => (
+    <section class:list={['value', 'reveal', { flip: i % 2 === 1 }]} id={v.id}>
+      <div class="words">
+        <h2>{v.title}</h2>
+        <p>{v.body}</p>
+        <ul>
+          {v.points.map(([label, href]) => <li><a href={href}>{label}</a></li>)}
+        </ul>
+      </div>
+      <div class="picture">
+        <Shot name={v.shot} alt={v.alt} />
+      </div>
+    </section>
+  ))}
+
+  <section class="terms reveal">
+    <h2>How your data is used</h2>
+    <div class="lines">
+      {terms.map(([head, body]) => <p><strong>{head}</strong> <span>{body}</span></p>)}
+    </div>
+    <p class="more"><a href={`${base}/trust/privacy/`}>Everything it reads, stores and sends</a></p>
+  </section>
+
+  <section class="faq reveal">
+    <h2>Common questions</h2>
+    {faq.map(([q, a]) => (
+      <details>
+        <summary>{q}</summary>
+        <p>{a}</p>
+      </details>
+    ))}
+  </section>
+
+  <section class="closing reveal" id="install">
+    <h2>Whatever happened to that idea?</h2>
+    <p class="sub center">Install Scintle, open the board, and find out.</p>
+    <div class="installs">
+      <p class="via">From a terminal</p>
+      <div class="install">
+        <pre><code>{npx}</code></pre>
+        <button type="button" data-copy={npx}>Copy</button>
+      </div>
+      <p class="via">Or with Claude Code’s own installer</p>
+      <div class="install second">
+        <pre><code>{terminal}</code></pre>
+        <button type="button" data-copy={terminal}>Copy</button>
+      </div>
+    </div>
+    <p class="needs">Needs Node.js 22.13+ and Claude Code, on macOS or Linux.</p>
+  </section>
+</div>
+
+<script>
+  // Reduced motion: the demo waits on its poster with controls instead of playing by itself.
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    for (const v of document.querySelectorAll<HTMLVideoElement>('[data-demo]')) {
+      v.autoplay = false;
+      v.pause();
+      v.controls = true;
+    }
+  }
+  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(b.dataset.copy ?? '');
+        b.textContent = 'Copied';
+        setTimeout(() => (b.textContent = 'Copy'), 1600);
+      } catch {
+        b.textContent = 'Select and copy';
+      }
+    });
+  }
+</script>
+
+<style>
+  .home {
+    overflow-x: clip;
+    --gap: clamp(72px, 10vw, 136px);
+    color: var(--vs-text);
+  }
+  .home a { color: var(--vs-hat); text-underline-offset: 3px; }
+  .home h2 { font-family: var(--sl-font-mono); font-weight: 500; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 14px; color: var(--vs-text); }
+  .home h3 { font-size: 15px; font-weight: 600; color: var(--vs-quiet); margin: 0 0 12px; }
+  section { margin-top: var(--gap); }
+
+  /* Hero: words on the left, the mascot on the right in a soft halo of the hat's blue; stacked on phones. */
+  .hero {
+    position: relative; margin-top: 24px; padding-top: 24px;
+    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(32px, 5vw, 72px); align-items: center;
+  }
+  .copy { min-width: 0; }
+  .glow {
+    position: absolute; inset: -80px -10% auto; height: 760px; z-index: -1; pointer-events: none;
+    background: radial-gradient(ellipse 50% 45% at 72% 55%, var(--vs-glow), transparent 70%);
+  }
+  .hero h1 {
+    font-family: var(--sl-font-mono); font-size: clamp(34px, 5vw, 60px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 500;
+    max-width: 16ch; margin: 0 0 clamp(24px, 2.6vw, 36px); color: var(--vs-text);
+  }
+  .hero h1::after { content: '▍'; color: var(--vs-hat); margin-left: .08em; }
+  @media (prefers-reduced-motion: no-preference) { .hero h1::after { animation: blink 1.1s steps(1) infinite; } }
+  @keyframes blink { 50% { opacity: 0; } }
+  .lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--vs-quiet); max-width: 46ch; margin: 0 0 32px; line-height: 1.55; }
+  .art { width: 100%; min-width: 0; margin: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--vs-line); box-shadow: 0 40px 120px -40px var(--vs-glow); }
+  .art video { display: block; width: 100%; height: auto; aspect-ratio: 1440 / 900; background: #08090c; }
+  .oneline { display: inline-flex; align-items: center; gap: 14px; margin-top: 4px; padding: 8px 8px 8px 14px; border: 1px solid var(--vs-line); border-radius: 2px; }
+  .oneline code { font-size: 15px; color: var(--vs-text); background: none; padding: 0; }
+  .oneline code span { color: var(--vs-quiet); }
+  .oneline button { font: 500 13px var(--sl-font-mono); color: var(--vs-text); background: transparent; border: 1px solid var(--vs-line); border-radius: 2px; padding: 5px 10px; cursor: pointer; }
+  .oneline button:hover { border-color: var(--vs-hat); }
+  .sub.center { margin-inline: auto; text-align: center; }
+  .needs { color: var(--vs-quiet); font-size: 14px; margin-top: 20px; }
+  .closing .installs { max-width: 640px; margin-inline: auto; }
+  .actions { display: flex; gap: 24px; align-items: center; margin: 0 0 20px; flex-wrap: wrap; }
+  .primary {
+    display: inline-block; background: var(--vs-hat); color: var(--vs-ink) !important; font-weight: 600;
+    padding: 12px 22px; border-radius: 2px; text-decoration: none; font-family: var(--sl-font-mono);
+  }
+  .quiet { font-weight: 500; }
+  .install {
+    position: relative; display: inline-block; text-align: left; max-width: 100%;
+    background: color-mix(in srgb, var(--vs-hat) 8%, var(--vs-panel));
+    border: 1px solid color-mix(in srgb, var(--vs-hat) 55%, var(--vs-line)); border-radius: 2px;
+    padding: 20px 112px 20px 22px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--vs-hat) 10%, transparent), 0 24px 60px -30px var(--vs-glow);
+  }
+  .install pre { margin: 0; background: none; border: 0; padding: 0; white-space: pre-wrap; line-height: 1.8; }
+  .install code { font-size: clamp(14px, 1.15vw, 16.5px); color: var(--vs-text); background: none; }
+  .install button {
+    position: absolute; top: 50%; right: 16px; transform: translateY(-50%);
+    font: 600 14px var(--sl-font); color: var(--vs-ink);
+    background: var(--vs-hat); border: 0; border-radius: 2px; padding: 9px 16px; cursor: pointer;
+  }
+  .install button:hover { filter: brightness(1.1); }
+  /* Two ways in: npx first, the plugin commands below it in a quieter box. */
+  .installs { display: flex; flex-direction: column; align-items: stretch; text-align: left; max-width: 100%; }
+  .installs .install { display: block; }
+  .installs .via { margin: 0 0 8px; font: 500 14px var(--sl-font); color: var(--vs-quiet); }
+  .installs .install + .via { margin-top: 18px; }
+  .install.second { background: var(--vs-panel); border-color: var(--vs-line); box-shadow: none; }
+  .install.second button { background: transparent; color: var(--vs-text); border: 1px solid var(--vs-line); }
+
+  /* Demo: the full-width recording right under the hero. */
+  .demo { margin-top: clamp(48px, 6vw, 80px); text-align: center; }
+  .demo video {
+    display: block; width: 100%; height: auto; aspect-ratio: 1440 / 900; background: #08090c;
+    border-radius: 6px; border: 1px solid var(--vs-line); box-shadow: 0 40px 120px -40px var(--vs-glow);
+  }
+
+  /* Proof: the claim, then the reality beside it. */
+  .proof { text-align: center; }
+  .kicker { color: var(--vs-quiet); font-size: 14px; margin-bottom: 20px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 920px; margin: 0 auto; text-align: left; }
+  .pair figure { margin: 0; padding: 28px; border-radius: 14px; border: 1px solid var(--vs-line); background: var(--vs-panel); }
+  .pair figcaption { font-size: 13px; color: var(--vs-quiet); margin-bottom: 12px; }
+  .claim blockquote { margin: 0; padding: 0; border: 0; font-size: clamp(20px, 2.2vw, 26px); line-height: 1.3; color: var(--vs-text); font-style: normal; }
+  .reality { border-color: color-mix(in srgb, var(--vs-red) 45%, var(--vs-line)) !important; }
+  .reality blockquote { margin: 0; padding: 0; border: 0; font-size: clamp(20px, 2.2vw, 26px); line-height: 1.3; color: var(--vs-red); font-style: normal; }
+  .caption { color: var(--vs-quiet); margin-top: 20px; }
+  .more { margin-top: 28px; }
+
+  /* Value propositions: words and a screenshot, alternating sides. */
+  .value { display: grid; grid-template-columns: 5fr 7fr; gap: clamp(32px, 5vw, 72px); align-items: center; }
+  .value.flip { grid-template-columns: 7fr 5fr; }
+  .value.flip .words { order: 2; }
+  .words p { color: var(--vs-quiet); font-size: 18px; line-height: 1.6; margin: 0 0 20px; max-width: 42ch; }
+  .words ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .words li { padding-left: 18px; position: relative; }
+  .words li::before { content: ''; position: absolute; left: 0; top: 0.62em; width: 8px; height: 1.5px; background: var(--vs-hat); }
+  .words li a { color: var(--vs-text); text-decoration: none; border-bottom: 1px solid var(--vs-line); }
+  .words li a:hover { border-color: var(--vs-hat); }
+
+  /* Dimensions and terms: plain lists, no cards. */
+  .sub { color: var(--vs-quiet); max-width: 60ch; margin: 0 0 32px; }
+  .groups { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  .groups dl { margin: 0; }
+  .groups dt { margin-top: 16px; font-weight: 600; }
+  .groups dt a { color: var(--vs-text); text-decoration: none; }
+  .groups dt a:hover { color: var(--vs-hat); }
+  .groups dd { margin: 2px 0 0; color: var(--vs-quiet); }
+  .lines { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 56px; margin-top: 24px; }
+  .lines p { margin: 0; color: var(--vs-quiet); line-height: 1.6; }
+  .lines strong { color: var(--vs-text); display: block; font-size: 19px; margin-bottom: 4px; }
+
+  .faq { max-width: 780px; }
+  .faq details { border-top: 1px solid var(--vs-line); padding: 18px 0; }
+  .faq details:last-of-type { border-bottom: 1px solid var(--vs-line); }
+  .faq summary { cursor: pointer; font-size: 18px; font-weight: 600; color: var(--vs-text); }
+  .faq p { color: var(--vs-quiet); margin: 12px 0 0; }
+
+  .closing { text-align: center; margin-bottom: 96px; }
+  .closing .install { margin: 8px 0 0; }
+  .closing .next { margin-top: 28px; }
+
+  @media (max-width: 860px) {
+    .pair, .value, .value.flip, .groups, .lines { grid-template-columns: 1fr; }
+    .hero { grid-template-columns: minmax(0, 1fr); text-align: center; }
+    .hero h1, .lede { margin-inline: auto; }
+    .actions { justify-content: center; }
+    .value.flip .words { order: 0; }
+    .install { padding-right: 18px; padding-bottom: 60px; }
+    .install pre { white-space: pre-wrap; word-break: break-all; }
+    .install button { top: auto; bottom: 12px; transform: none; }
+  }
+
+  /* Motion: one entrance on load, then sections easing in as they scroll into view. Off for reduced motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .rise { animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+    .r2 { animation-delay: 0.08s; }
+    .r3 { animation-delay: 0.18s; }
+    .r4 { animation-delay: 0.32s; }
+    .r5 { animation-delay: 0.4s; }
+    .glow { animation: breathe 9s ease-in-out infinite alternate; }
+
+    @supports (animation-timeline: view()) {
+      .reveal { animation: reveal linear both; animation-timeline: view(); animation-range: entry 5% cover 28%; }
+      .reveal .picture { animation: lift linear both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+      .proof .reality { animation: slide linear both; animation-timeline: view(); animation-range: entry 20% cover 45%; }
+    }
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  @keyframes breathe { from { opacity: 0.7; transform: scale(0.98); } to { opacity: 1; transform: scale(1.03); } }
+  @keyframes reveal { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+  @keyframes lift { from { transform: translateY(40px) scale(0.97); } to { transform: none; } }
+  @keyframes slide { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
+</style>

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/scintle/scintle/security/advisories/new
+    about: Report it privately, please, not as an issue.
+  - name: Docs
+    url: https://scintle.github.io/scintle/
+    about: Install, troubleshooting and FAQ.

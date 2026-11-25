@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EVENT_GROUP, EVENT_LABEL, eventDetail, isLive, isUnsure } from '../lib/derive';
+import { EVENT_GROUP, EVENT_LABEL, eventDetail, isLive, saidBy } from '../lib/derive';
 import type { Ev, Source } from '../lib/types';
 import { useStore } from '../store';
 
@@ -22,6 +22,7 @@ const when = (ts: string): string =>
 function SourceLine({ e, sources }: { e: Ev; sources: Record<string, Source> }) {
   if (e.session_id === null) return <span>made on the board</span>;
   const s = sources[e.session_id];
+  if (s?.doc) return <span title={s.doc}>from document {s.doc.split('/').slice(-2).join('/')}{s.state === 'deleted' ? ' · file deleted · excerpt saved' : ''}</span>;
   const id = `session ${e.session_id.slice(0, 8)}${e.turn_seq !== null ? ` · turn ${e.turn_seq}` : ''}`;
   if (s?.state === 'deleted') return <span>{id} · source chat deleted (30-day cleanup) · excerpt saved</span>;
   if (s?.state === 'expiring') return <span>{id} · chat expires in {s.expiresInDays} {s.expiresInDays === 1 ? 'day' : 'days'}</span>;
@@ -34,7 +35,7 @@ function EventCard({ e, sources, version }: { e: Ev; sources: Record<string, Sou
   const removed = e.state === 'removed';
   return (
     <div className="ev-card">
-      {e.quote && <blockquote>“{e.quote}”</blockquote>}
+      {e.quote && <blockquote>“{e.quote}”<cite>— {saidBy(e.quote_by).credit}</cite></blockquote>}
       {e.excerpt && <pre>{e.excerpt}</pre>}
       <div className="prov">
         <span>{e.origin === 'user' ? 'you' : `inferred${e.confidence !== null ? ` · ${Math.round(e.confidence * 100)}%` : ''}`}</span>
@@ -110,7 +111,7 @@ export function Timeline({ events }: { events: Ev[] }) {
           const quiet = prev ? Math.floor((Date.parse(e.ts) - Date.parse(prev.ts)) / DAY) : 0;
           const open = openEvent === e.id;
           const settled = e.origin === 'user' || e.state === 'confirmed';
-          const cls = ['ev', isUnsure(e) ? 'unsure' : '', settled ? 'settled' : '', isLive(e) ? '' : 'removed'].join(' ');
+          const cls = ['ev', settled ? 'settled' : '', isLive(e) ? '' : 'removed'].join(' ');
           return (
             <li key={e.id} id={`ev-${e.id}`}>
               {quiet >= 3 && <div className="gap">{quiet} days quiet</div>}
@@ -119,7 +120,6 @@ export function Timeline({ events }: { events: Ev[] }) {
                 <button className="ev-row" onClick={() => setOpenEvent(open ? null : e.id)}>
                   <div className="top">
                     <span className="type">{EVENT_LABEL[e.type] ?? e.type}</span>
-                    {isUnsure(e) && <span className="pill unsure">unsure</span>}
                     <span className="when">{when(e.ts)}</span>
                   </div>
                   {eventDetail(e, nameOf) && <div className="detail">{eventDetail(e, nameOf)}</div>}

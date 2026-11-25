@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import { post } from '../lib/api';
 import { projectsOf } from '../lib/derive';
+
+const FOLDERS = '\u0000folders';
+const TELEMETRY = '\u0000telemetry';
+const HELP = '\u0000help';
 import { useStore, type View } from '../store';
 
 /**
@@ -26,9 +30,9 @@ export function Mark({ size = 22, tile = false }: { size?: number; tile?: boolea
   );
 }
 
-const LENSES: { id: View; label: string }[] = [
-  { id: 'river', label: 'River' },
-  { id: 'constellation', label: 'Constellation' },
+const LENSES: { id: View; label: string; hint: string }[] = [
+  { id: 'river', label: 'River', hint: 'River: where did each idea end up, and when?' },
+  { id: 'constellation', label: 'Constellation', hint: "Constellation: what's related to what?" },
 ];
 
 const lastLens = (): View => {
@@ -51,17 +55,21 @@ export function AppBar() {
         <Mark size={24} tile />
         <span className="word">Scintle</span>
         <nav className="seg pages" aria-label="Page">
-          <button aria-pressed={view === 'board'} aria-current={view === 'board' ? 'page' : undefined} onClick={() => setView('board')}>Board</button>
           <button aria-pressed={view !== 'board'} aria-current={view !== 'board' ? 'page' : undefined} onClick={() => view === 'board' && setView(lastLens())}>Lineage</button>
+          <button aria-pressed={view === 'board'} aria-current={view === 'board' ? 'page' : undefined} onClick={() => setView('board')}>Board</button>
         </nav>
         <span className="sep" />
         <label className="scope" title="Show ideas from one project">
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.75 4.25c0-.83.67-1.5 1.5-1.5h3.1l1.5 1.5h4.9c.83 0 1.5.67 1.5 1.5v6c0 .83-.67 1.5-1.5 1.5H3.25c-.83 0-1.5-.67-1.5-1.5z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
           <span className="label">{project ?? 'All projects'}</span>
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <select value={project ?? ''} onChange={(e) => setProject(e.target.value || null)} aria-label="Project">
+          <select value={project ?? ''} onChange={(e) => (e.target.value === FOLDERS ? setDialog('folders') : e.target.value === TELEMETRY ? setDialog('telemetry') : e.target.value === HELP ? setDialog('help') : setProject(e.target.value || null))} aria-label="Project">
             <option value="">All projects</option>
             {projects.map((p) => <option key={p} value={p}>{p}</option>)}
+            <option disabled>──────────</option>
+            <option value={FOLDERS}>Folders Scintle reads…</option>
+            <option value={TELEMETRY}>Usage sharing…</option>
+            <option value={HELP}>Help and feedback…</option>
           </select>
         </label>
       </div>
@@ -69,7 +77,7 @@ export function AppBar() {
       {view === 'board' ? <span /> : (
         <nav className="seg" aria-label="Lens">
           {LENSES.map((v) => (
-            <button key={v.id} aria-pressed={view === v.id} onClick={() => {
+            <button key={v.id} aria-pressed={view === v.id} title={v.hint} onClick={() => {
               try { localStorage.setItem('scintle.lens', v.id); } catch { /* storage refused */ }
               setView(v.id);
             }}>{v.label}</button>

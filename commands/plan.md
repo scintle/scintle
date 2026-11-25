@@ -1,10 +1,10 @@
 ---
 description: Plan an idea from your Scintle board, with its full history
 argument-hint: I-001
-allowed-tools: Bash(node:*), EnterPlanMode
+allowed-tools: Bash(node:*), Bash(echo:*), EnterPlanMode
 ---
 
-!`NODE_NO_WARNINGS=1 node --experimental-strip-types "${CLAUDE_PLUGIN_ROOT}/server/cli.ts" brief $ARGUMENTS`
+!`NODE_NO_WARNINGS=1 node "${CLAUDE_PLUGIN_ROOT}/server/run.mjs" brief $ARGUMENTS || echo "Scintle needs Node.js 22.13 or newer on your PATH."`
 
 The text above is a brief from Scintle, the user's idea board. If it says there is no such idea, tell the
 user that and stop.

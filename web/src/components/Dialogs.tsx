@@ -114,3 +114,36 @@ export function ConsentDialog({ children }: { children: ReactNode }) {
     </Modal>
   );
 }
+
+/** What Scintle reads (D25): Claude's own folder always, and only the folders added here besides. */
+export function FoldersDialog() {
+  const { snap, act, setDialog } = useStore();
+  const [path, setPath] = useState('');
+  const folders = snap?.folders ?? [];
+  const add = async (): Promise<void> => {
+    if ((await act('/api/folders', { path }, 'Folder added; its documents are read on the next catch-up')).ok) setPath('');
+  };
+  return (
+    <Modal onClose={() => setDialog(null)} label="Folders Scintle reads">
+      <div className="body folders">
+        <h2>Folders Scintle reads</h2>
+        <p className="muted">Scintle always reads Claude's own folder: your sessions and saved plans. Nothing else on your disk is read unless you add it here, like opening a folder in an editor.</p>
+        <ul className="folder-list">
+          <li className="fixed"><code>~/.claude</code><span>always</span></li>
+          {folders.map((f) => (
+            <li key={f.path}>
+              <code>{f.path}</code>
+              <span>{f.docs} {f.docs === 1 ? 'document' : 'documents'}</span>
+              <button className="btn small ghost" title="Stop reading this folder and forget its document text; ideas stay" onClick={() => void act('/api/folders/remove', { path: f.path }, `Stopped reading ${f.path}`)}>Remove</button>
+            </li>
+          ))}
+        </ul>
+        <form className="add-folder" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+          <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="~/Workspace/my-project" aria-label="Folder path" spellCheck={false} />
+          <button className="btn primary small" disabled={!path.trim()}>Add folder</button>
+        </form>
+        <p className="hint">Or run <code>/scintle:add</code> in a Claude Code session inside that folder. Scintle reads its top-level Markdown, plus plans, specs, context, decisions and reports folders inside it.</p>
+      </div>
+    </Modal>
+  );
+}

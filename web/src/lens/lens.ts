@@ -4,16 +4,29 @@
  */
 
 import * as d3 from 'd3';
+import { saidBy } from '../lib/derive';
 import type { Col, Fam, Glyph, LEv, LIdea, LLink, LT, Model, Status } from './model';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Sel = d3.Selection<any, any, any, any>;
 export type View = 'river' | 'constellation';
+export type Caption = {
+  when: string; what: string; idea: string; ideaId: string; logo?: string | undefined; detail: string; quote: string | null; quoteBy: LEv['quoteBy'];
+  color: string; step: number; total: number; weight: 1 | 2 | 3;
+};
+/** Moments a replay slows down for. Everything else ticks past. */
+/** Key moments and how loudly each plays: 3 begins or ends a story, 2 turns it, 1 nudges it. */
+const KEY_MOMENTS = new Map<string, 1 | 2 | 3>([
+  ['Born', 3], ['Pivoted', 3], ['Merged', 3], ['Released', 3], ['Dropped', 3],
+  ['Renamed', 2], ['Spawned', 2], ['Planned', 2], ['Building started', 2], ['Revived', 2],
+  ['Narrowed', 1], ['Parked', 1],
+]);
 type Hooks = { select: (id: string | null) => void; openEvent: (ideaId: string, uid: number) => void };
 type Hl = { ids: Set<string>; links: Set<LLink>; order: string[] };
 
 const STATUSWORD: Record<Status, string> = { active: 'active', dormant: 'quiet', parked: 'parked', merged: 'merged', pivoted: 'pivoted', dropped: 'dropped', released: 'released' };
 const LINKWORD = { spawn: 'spun off', pivot: 'pivoted', merge: 'merged' } as const;
+const RESOLUTION_WORD: Record<string, string> = { 'not-interested': 'not interested', crowded: 'crowded', 'no-demand': 'no demand', 'not-feasible': 'not feasible' };
 const ENDED: Status[] = ['merged', 'pivoted', 'dropped', 'released'];
 const R = { PADL: 24, PADR: 210, TOP: 62, LANE: 52 };
 const POS_KEY = 'scintle.lens.pos';
@@ -67,10 +80,15 @@ export class Lens {
   private depth = 2;
   private hoverLane: string | null = null;
   private rz = d3.zoomIdentity;
+  private stripX: ReturnType<Lens['makeX']> | null = null;
   private cz = d3.zoomIdentity;
   private pos: Record<string, { x: number; y: number }> = {};
   private morphing = false;
   private replayTimer: number | null = null;
+  private runId = 0;
+  private paused = false;
+  private skip = false;
+  private wake: (() => void) | undefined;
   private raf = 0;
   private svg: Sel;
   private strip: Sel;
@@ -83,6 +101,8 @@ export class Lens {
   private readonly cleanups: (() => void)[] = [];
   onAsOf: (label: string | null) => void = () => {};
   onReplay: (on: boolean) => void = () => {};
+  onPaused: (paused: boolean) => void = () => {};
+  onCaption: (c: Caption | null) => void = () => {};
 
   constructor(stage: HTMLDivElement, svgEl: SVGSVGElement, stripEl: SVGSVGElement, tip: HTMLDivElement, view: View, hooks: Hooks) {
     this.stage = stage;
@@ -92,6 +112,9 @@ export class Lens {
     this.view = view;
     this.svg = d3.select(svgEl);
     this.strip = d3.select(stripEl);
+    // The whole strip is a scrubber: press anywhere and drag, like a video's progress bar.
+    this.strip.style('cursor', 'ew-resize').call(d3.drag<SVGSVGElement, unknown>().container(stripEl)
+      .on('start drag', (ev) => this.scrubTo(ev.x)) as any);
     try { this.pos = JSON.parse(localStorage.getItem(POS_KEY) ?? '{}') as typeof this.pos; } catch { this.pos = {}; }
 
     const zFilter = (ev: any): boolean => (ev.type === 'wheel' ? ev.ctrlKey || ev.metaKey : ev.type === 'dblclick' ? false : !ev.ctrlKey && !ev.button);
@@ -278,7 +301,7 @@ export class Lens {
   }
   private hideTip = (): void => { this.tip.hidden = true; };
   private evTip(d: LIdea, e: LEv): string {
-    return `<div class="k">${esc(e.label)} · ${esc(this.fmtH(this.hrs(e.t)))}${e.suggested ? '<span class="sugg">unsure</span>' : ''}</div><div class="t">${esc(e.title)}</div>${e.quote ? `<q>${esc(e.quote)}</q>` : ''}<div class="src">${esc(this.currentName(d))}</div>`;
+    return `<div class="k">${esc(e.label)} · ${esc(this.fmtH(this.hrs(e.t)))}</div><div class="t">${esc(e.title)}</div>${e.quote ? `<q>${esc(e.quote)}</q><div class="src">— ${esc(saidBy(e.quoteBy).credit)}</div>` : ''}<div class="src">${esc(this.currentName(d))}</div>`;
   }
   private ideaTip(d: LIdea): string {
     const f = this.fam(d).name;
@@ -288,7 +311,7 @@ export class Lens {
   }
   private linkTip(l: LLink): string {
     const a = this.byId.get(l.from) as LIdea, b = this.byId.get(l.to) as LIdea;
-    return `<div class="k">${LINKWORD[l.type]}${l.suggested ? '<span class="sugg">unsure</span>' : ''}</div><div class="t">${esc(this.currentName(a))} → ${esc(this.currentName(b))}</div>`;
+    return `<div class="k">${LINKWORD[l.type]}</div><div class="t">${esc(this.currentName(a))} → ${esc(this.currentName(b))}</div>`;
   }
 
   /* ---------- geometry ---------- */
@@ -351,11 +374,13 @@ export class Lens {
       const quiet = c.k.startsWith('q');
       if (i % 2 === 1 || quiet) bands.append('rect').attr('x', x0).attr('y', 0).attr('width', x1 - x0).attr('height', H).attr('style', `fill:var(--band);opacity:${quiet ? 0.9 : 0.55}`);
       bands.append('line').attr('x1', x0).attr('x2', x0).attr('y1', 36).attr('y2', H).attr('style', 'stroke:var(--rule);stroke-width:1');
-      const cw = x1 - x0, short = quiet ? '' : (c.label.match(/\d+/)?.[0] ?? '');
-      const lab = cw >= c.label.length * 7.4 + 14 ? c.label : cw >= short.length * 7.6 + 10 ? short : '';
-      const lx = clamp(x0 + 6, 8, Math.max(8, x1 - lab.length * 7.6 - 4));
+      const cw = x1 - x0;
+      // A label carrying a month always shows, even past its column; later day numbers give way to it.
+      const monthLabel = /\D/.test(c.short);
+      const lab = cw >= c.label.length * 7.4 + 14 ? c.label : (monthLabel || cw >= c.short.length * 7.6 + 10) ? c.short : '';
+      const lx = monthLabel && cw < lab.length * 7.6 + 10 ? Math.max(x0 + 4, 8) : clamp(x0 + 6, 8, Math.max(8, x1 - lab.length * 7.6 - 4));
       if (lab && lx > labelEnd + 8 && (lx + lab.length * 7.6 < nowX - 18 || lx > nowX + 30)) {
-        bands.append('text').attr('class', 'day').attr('x', lx).attr('y', 26).text(lab);
+        bands.append('text').attr('class', 'day').attr('x', lx).attr('y', 26).text(lab).append('title').text(c.label);
         labelEnd = lx + lab.length * 7.6;
       }
       const pph = cw / 24, step = pph > 46 ? 1 : pph > 16 ? 3 : pph > 6 ? 6 : 0;
@@ -398,7 +423,6 @@ export class Lens {
       if (lit) g.append('path').attr('d', d).attr('class', 'lane-line glow').attr('filter', 'url(#glow)').attr('style', `stroke:url(#${gid});stroke-width:9`);
       g.append('path').attr('d', d).attr('class', 'lane-line').attr('style', `stroke:url(#${gid});stroke-width:${lit ? 3.6 : l.type === 'merge' ? 3 : 2};${l.suggested && !lit ? 'stroke-dasharray:5 5;opacity:.75' : ''}`);
       if (lit) g.append('path').attr('d', d).attr('class', 'lane-line lit').attr('style', 'stroke:var(--surface);stroke-width:2;stroke-dasharray:2 12;opacity:.9');
-      if (!ghost && l.type === 'pivot' && l.suggested) g.append('text').attr('class', 'link-lbl').attr('x', x1 + 7).attr('y', y1 - 10).text('pivoted?');
       if (!ghost) g.append('path').attr('d', d).attr('class', 'lane-hit').on('mousemove', (ev: MouseEvent) => this.showTip(ev, this.linkTip(l))).on('mouseleave', this.hideTip);
     });
 
@@ -431,7 +455,8 @@ export class Lens {
         sl.append('tspan').text(cn);
         if (former.length) sl.append('tspan').attr('class', 'was').text(`  formerly ${former.join(' → ')}`);
       }
-      if (st !== 'merged') g.append('text').attr('class', 'lbl-end').attr('x', fin ? se + 14 : te + (st === 'active' ? 18 : 12)).attr('y', yy + 4).text(STATUSWORD[st]);
+      const endWord = st === 'dropped' && d.resolution && d.resolution !== 'other' ? `dropped · ${RESOLUTION_WORD[d.resolution]}` : STATUSWORD[st];
+      if (st !== 'merged') g.append('text').attr('class', 'lbl-end').attr('x', fin ? se + 14 : te + (st === 'active' ? 18 : 12)).attr('y', yy + 4).text(endWord);
       const evs = this.visible(d), endX = fin ? se : te;
       evs.forEach((e, i) => {
         const xx = X(e.t);
@@ -625,13 +650,13 @@ export class Lens {
     const W = this.W(), H = 60, top = 18, bot = H - 8, sx = this.makeX(W, R.PADL, R.PADR), strip = this.strip;
     strip.attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).selectAll('*').remove();
     const sxh = (h: number): number => sx(this.fromH(h));
-    strip.append('rect').attr('x', 0).attr('y', 0).attr('width', W).attr('height', H).attr('fill', 'transparent').style('cursor', 'pointer')
-      .on('click', (ev: MouseEvent) => { const [px] = d3.pointer(ev); this.setAsOf(sx.inv(px)); });
+    this.stripX = sx;
+    strip.append('rect').attr('x', 0).attr('y', 0).attr('width', W).attr('height', H).attr('fill', 'transparent');
     for (const c of this.m.cols) {
       const x0 = sx([c.k, 0]);
       strip.append('line').attr('x1', x0).attr('x2', x0).attr('y1', 4).attr('y2', H - 4).attr('style', 'stroke:var(--rule)');
       const w = sx([c.k, 24]) - x0;
-      if (w > 46) strip.append('text').attr('class', 'hr').attr('x', x0 + 4).attr('y', 12).text(c.k.startsWith('q') ? 'quiet' : c.label.toLowerCase());
+      if (c.short && (w > 30 || /\D/.test(c.short))) strip.append('text').attr('class', 'hr').attr('x', x0 + 4).attr('y', 12).text(c.short);
     }
     const rowH = (bot - top) / Math.max(1, this.m.ideas.length);
     this.ghostDraw = true;
@@ -645,10 +670,7 @@ export class Lens {
     if (this.view === 'river' && this.rz.k > 1.01) {
       const bx0 = -this.rz.x / this.rz.k, bx1 = (W - this.rz.x) / this.rz.k;
       strip.append('rect').attr('class', 'win').attr('x', bx0).attr('y', top - 4).attr('width', bx1 - bx0).attr('height', bot - top + 8).attr('rx', 5)
-        .call(d3.drag<SVGRectElement, unknown>().on('drag', (ev) => {
-          const nx = clamp(this.rz.x - ev.dx * this.rz.k, W - W * this.rz.k, 0);
-          this.svg.call(this.zoomR.transform as any, d3.zoomIdentity.translate(nx, 0).scale(this.rz.k));
-        }) as any);
+        .style('pointer-events', 'none');
     }
     const hx = sxh(this.T()), g = strip.append('g').attr('class', 'handle').attr('transform', `translate(${hx},0)`);
     g.append('line').attr('y1', 3).attr('y2', H - 3).attr('style', 'stroke:var(--scrub);stroke-width:2');
@@ -656,11 +678,45 @@ export class Lens {
     g.append('rect').attr('x', -14).attr('y', 0).attr('width', 28).attr('height', H).attr('fill', 'transparent');
     const lbl = this.asOf === null ? 'now' : this.fmtH(this.asOf);
     strip.append('text').attr('class', 'scrub-lbl').attr('x', hx + (hx > W - 160 ? -12 : 12)).attr('y', H / 2 + 3.5).attr('text-anchor', hx > W - 160 ? 'end' : 'start').text(lbl).style('pointer-events', 'none');
-    g.call(d3.drag<SVGGElement, unknown>().on('drag', (ev) => {
-      if (this.replayTimer !== null) this.stopReplay(true);
-      const [px] = d3.pointer(ev, strip.node());
-      this.setAsOf(sx.inv(px), sx);
-    }) as any);
+  }
+
+  /** Move the playhead to strip position `px`, and pan the River so the playhead stays in view. */
+  private scrubTo(px: number): void {
+    if (!this.stripX) return;
+    if (this.replayTimer !== null) this.stopReplay(true);
+    this.scrubbing = true;
+    this.setAsOf(this.stripX.inv(px), this.stripX);
+    this.scrubbing = false;
+    if (this.view !== 'river' || this.rz.k <= 1.01) return;
+    const W = this.W(), x = this.stripX(this.fromH(this.T())) * this.rz.k + this.rz.x;
+    if (x > W * 0.15 && x < W * 0.8) return;
+    const tx = clamp(W * (x <= W * 0.15 ? 0.2 : 0.75) - (x - this.rz.x), W - W * this.rz.k, 0);
+    this.svg.call(this.zoomR.transform as any, d3.zoomIdentity.translate(tx, 0).scale(this.rz.k));
+  }
+
+  /** True while a scrub, not the replay, moved the playhead. */
+  scrubbing = false;
+  get replaying(): boolean { return this.replayTimer !== null; }
+
+  /** The key moments up to the playhead (all of them at now), as the replay would have captioned them. */
+  momentsUntil(): Caption[] {
+    const beats = this.beats(), end = this.T(), keep = this.asOf, out: Caption[] = [];
+    for (const [i, b] of beats.entries()) {
+      if (b.h > end + 1e-6) break;
+      if (!b.key) continue;
+      this.asOf = b.h;
+      out.push(this.caption(b, i, beats.length));
+    }
+    this.asOf = keep;
+    return out;
+  }
+
+  private caption(b: { h: number; d: LIdea; e: LEv }, i: number, total: number): Caption {
+    return {
+      when: this.fmtH(b.h), what: b.e.label, idea: this.currentName(b.d), ideaId: b.d.id, logo: b.d.logo,
+      detail: b.e.title === b.e.label ? '' : b.e.title, quote: b.e.quote, quoteBy: b.e.quoteBy, color: this.col(b.d), step: i + 1, total,
+      weight: KEY_MOMENTS.get(b.e.label) ?? 1,
+    };
   }
   private evHours(): number[] { return [...new Set(this.m.ideas.flatMap((d) => d.events.map((e) => this.hrs(e.t))))].sort((a, b) => a - b); }
   private setAsOf(h: number, sx?: (t: LT) => number): void {
@@ -675,25 +731,113 @@ export class Lens {
   }
   backToNow(): void { this.stopReplay(false); }
 
-  /* ---------- replay ---------- */
+  /* ---------- cinematic replay ---------- */
+  /**
+   * A replay is a list of beats in time order. Minor events tick past; key moments slow the playhead, move the
+   * camera to them, light their family, and hold a caption. Pausing, skipping and stopping work at any point.
+   */
   replay(): void {
     if (this.replayTimer !== null) { this.stopReplay(false); return; }
-    const hs = this.evHours();
-    if (!hs.length) return;
-    let i = 0;
+    const beats = this.beats();
+    if (!beats.length) return;
+    const run = ++this.runId;
+    this.replayTimer = run;
+    this.paused = false;
     this.onReplay(true);
-    const step = (): void => {
-      if (i >= hs.length) { this.stopReplay(false); return; }
-      this.asOf = hs[i++] as number;
-      this.onAsOf(this.fmtH(this.asOf));
-      this.render();
-    };
-    step();
-    this.replayTimer = window.setInterval(step, reduceMotion() ? 900 : 460);
+    void this.play(beats, run);
   }
+  pauseReplay(): void { this.paused = !this.paused; this.onPaused(this.paused); this.wake?.(); }
+  nextMoment(): void { this.skip = true; this.wake?.(); }
+
+  private beats(): { h: number; d: LIdea; e: LEv; key: boolean }[] {
+    const out: { h: number; d: LIdea; e: LEv; key: boolean }[] = [];
+    for (const d of this.m.ideas) for (const e of d.events) out.push({ h: this.hrs(e.t), d, e, key: KEY_MOMENTS.has(e.label) });
+    return out.sort((x, y) => x.h - y.h || Number(y.key) - Number(x.key));
+  }
+
+  /** Wait `ms`, holding while paused; resolves early on skip or stop. */
+  private wait(ms: number, run: number): Promise<void> {
+    return new Promise((resolve) => {
+      const end = performance.now() + ms;
+      const tick = (): void => {
+        if (run !== this.runId || this.skip) return resolve();
+        if (this.paused) { this.wake = tick; return; }
+        const left = end - performance.now();
+        if (left <= 0) return resolve();
+        setTimeout(tick, Math.min(left, 120));
+      };
+      tick();
+    });
+  }
+
+  /** Slide the playhead from where it is to `h`, rendering as it goes. */
+  private async glide(h: number, ms: number, run: number): Promise<void> {
+    const from = this.asOf ?? h, t0 = performance.now();
+    if (ms <= 0 || reduceMotion()) { this.setPlayhead(h); return; }
+    while (run === this.runId && !this.skip) {
+      if (this.paused) { await this.wait(200, run); continue; }
+      const k = Math.min(1, (performance.now() - t0) / ms), eased = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+      this.setPlayhead(from + (h - from) * eased);
+      if (k >= 1) return;
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    this.setPlayhead(h);
+  }
+
+  private setPlayhead(h: number): void {
+    this.asOf = h;
+    this.onAsOf(this.fmtH(h));
+    this.render();
+  }
+
+  private async play(beats: { h: number; d: LIdea; e: LEv; key: boolean }[], run: number): Promise<void> {
+    this.setPlayhead(beats[0]?.h ?? 0);
+    for (const [i, b] of beats.entries()) {
+      if (run !== this.runId) return;
+      const fast = this.skip && !b.key;
+      if (b.key) this.skip = false;
+      if (!b.key) {
+        await this.glide(b.h, fast ? 0 : 260, run);
+        continue;
+      }
+      this.skip = false;
+      await this.glide(b.h, 900, run);
+      if (run !== this.runId) return;
+      this.hl = { ids: this.lineage(b.d.id), links: new Set(), order: [b.d.id] };
+      this.focusCamera(b.d, b.h);
+      this.render();
+      const c = this.caption(b, i, beats.length), weight = c.weight;
+      this.onCaption(c);
+      // Bigger moments hold longer, so the feed breathes with the story.
+      await this.wait(1400 + weight * 600 + (b.e.quote ? 900 : 0), run);
+      this.hl = null;
+      this.skip = false;
+    }
+    if (run === this.runId) { await this.wait(800, run); this.stopReplay(false); }
+  }
+
+  /** Keep the moment in view: the River centres a few days around it; the Constellation flies to the idea. */
+  private focusCamera(d: LIdea, h: number): void {
+    if (this.view === 'constellation') { this.flyTo([d.id]); return; }
+    const W = this.W(), base = this.makeX(W, R.PADL, R.PADR);
+    const x = base(this.fromH(h)), window = Math.max(120, base(this.fromH(h + 72)) - base(this.fromH(h - 72)));
+    const k = clamp((W * 0.55) / window, 1, 12), tx = clamp(W * 0.45 - x * k, W - W * k, 0);
+    this.svg.transition().duration(dur(1100)).ease(d3.easeCubicInOut).call(this.zoomR.transform as any, d3.zoomIdentity.translate(tx, 0).scale(k));
+    const box = this.stage.parentElement, top = R.TOP + d.lane * R.LANE;
+    if (box && (top < box.scrollTop + 40 || top > box.scrollTop + box.clientHeight - 120)) box.scrollTo({ top: Math.max(0, top - box.clientHeight / 3), behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }
+
   private stopReplay(keep: boolean): void {
-    if (this.replayTimer !== null) { clearInterval(this.replayTimer); this.replayTimer = null; this.onReplay(false); }
-    if (!keep) { this.asOf = null; this.ghost = false; this.onAsOf(null); this.render(); }
+    if (this.replayTimer !== null) {
+      this.runId++;
+      this.replayTimer = null;
+      this.paused = false;
+      this.hl = null;
+      this.onCaption(null);
+      this.onReplay(false);
+      this.wake?.();
+    }
+    if (!keep) { this.asOf = null; this.ghost = false; this.onAsOf(null); this.fit(); this.render(); }
   }
 
   /* ---------- staged morph between views ---------- */

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      # Typecheck, unused code (knip), unit tests.
+      - run: npm run check
+      - run: npm ci
+        working-directory: web
+      # The built board is committed; it must match a fresh build.
+      - run: npm run build && git diff --exit-code -- dist
+        working-directory: web
+      - run: npx playwright test
+        working-directory: web
+
+      # The release zip installs and runs: start the server, check /health, stop. No model calls.
+      - name: Release zip smoke test
+        run: |
+          zip=$(bash scripts/build-release.sh HEAD 0.0.0-ci "$RUNNER_TEMP/rel" 2>/dev/null)
+          unzip -q "$zip" -d "$RUNNER_TEMP/unz"
+          export SCINTLE_HOME="$RUNNER_TEMP/home" CLAUDE_CONFIG_DIR="$RUNNER_TEMP/claude" SCINTLE_PORT=4991
+          mkdir -p "$CLAUDE_CONFIG_DIR/projects"
+          url=$(node "$RUNNER_TEMP/unz/scintle/server/run.mjs" ensure)
+          curl -fsS "$url/health"
+          node "$RUNNER_TEMP/unz/scintle/server/run.mjs" stop

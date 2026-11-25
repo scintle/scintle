@@ -1,0 +1,25 @@
+{
+  "name": "scintle",
+  "version": "0.1.0",
+  "description": "Your AI chats, turned into a history of your ideas. A Claude Code plugin: `npx scintle install` installs it through Claude Code's own installer, after you say yes.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "scintle": "bin/scintle.mjs"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scintle/scintle.git",
+    "directory": "npm"
+  },
+  "homepage": "https://scintle.github.io/scintle/",
+  "bugs": "https://github.com/scintle/scintle/issues",
+  "keywords": ["claude-code", "claude-code-plugin", "ideas", "idea-board", "ai-agent"]
+}

@@ -9,9 +9,12 @@ import { buildBrief } from './brief.ts';
 import { linkPlans } from './returnpath.ts';
 import { ensure, postFromHook, request, running, stop } from './daemon.ts';
 import { purgeDeleted, setConsent } from './store/upkeep.ts';
+import { discoverDocs, ingestDocs } from './ingest/docs.ts';
 import { execFile } from 'node:child_process';
+import { existsSync, rmSync } from 'node:fs';
 import { openDb, type Db } from './store/db.ts';
 import { resetInferred } from './store/ledger.ts';
+import { setConsent as setTelemetry, status as telemetryStatus } from './telemetry.ts';
 
 const dbPath = (): string => join(dataDir(), 'scintle.db');
 const flag = (args: string[], name: string): string | undefined => {
@@ -54,6 +57,7 @@ async function importCmd(args: string[]): Promise<void> {
   if (!dryRun) setConsent(db, true);
   ingestAll(db, dryRun);
   if (dryRun) return;
+  ingestDocs(db, discoverDocs(db), true);
   purgeDeleted(db);
   for (const { id } of db.prepare('SELECT id FROM sessions').all() as { id: string }[]) linkPlans(db, id);
   if (args.includes('--no-extract')) return;
@@ -89,12 +93,55 @@ async function hookCmd(): Promise<void> {
 async function openCmd(): Promise<void> {
   const s = await ensure();
   if (s === undefined) {
-    console.log('Scintle could not start. See ~/.local/share/scintle/scintled.log');
+    console.log(`Scintle could not start. See ${join(dataDir(), 'scintled.log')}`);
     return;
   }
   const url = `${s.url}/?t=${s.token}`;
-  if (process.platform === 'darwin') execFile('open', [url]);
+  const opener = process.platform === 'darwin' ? 'open' : process.platform === 'linux' ? 'xdg-open' : undefined;
+  // No display (SSH, containers): the link below is enough.
+  if (opener !== undefined) execFile(opener, [url], () => undefined);
   console.log(`Scintle board: ${s.url}`);
+}
+
+/** Deletes everything Scintle stored. Plugin uninstall leaves this folder alone (D27). */
+async function forgetCmd(args: string[]): Promise<void> {
+  const dir = dataDir();
+  // SCINTLE_HOME could point anywhere; only delete a folder that is recognisably ours.
+  if (!existsSync(join(dir, 'scintle.db')) && !existsSync(join(dir, 'token'))) {
+    console.log(`Nothing to delete: ${dir} holds no Scintle data.`);
+    return;
+  }
+  if (!args.includes('--yes') && !args.includes('yes')) {
+    console.log(`This deletes ${dir}: every idea, its history and Scintle's settings. Your Claude Code sessions are not touched.\nTo delete, run /scintle:forget yes (or scintle forget --yes in a terminal).`);
+    return;
+  }
+  await stop();
+  rmSync(dir, { recursive: true, force: true });
+  console.log(`Deleted ${dir}.`);
+}
+
+const WHY: Record<string, string> = {
+  'not-asked': 'Off: you have not been asked yet. The board asks once.',
+  declined: 'Off: you said no.',
+  DO_NOT_TRACK: 'Off: DO_NOT_TRACK is set.',
+  SCINTLE_TELEMETRY_DISABLED: 'Off: SCINTLE_TELEMETRY_DISABLED is set.',
+  CI: 'Off: running in CI.',
+  'no-endpoint': 'On, but this build has no collector address (only official releases send), so nothing is sent.',
+};
+
+function telemetryCmd(args: string[]): void {
+  const sub = args[0] ?? 'status';
+  if (sub === 'enable' || sub === 'disable') setTelemetry(sub === 'enable');
+  else if (sub !== 'status') {
+    console.error('usage: scintle telemetry status | enable | disable');
+    process.exitCode = 2;
+    return;
+  }
+  const t = telemetryStatus();
+  console.log(t.blockedBy === null ? 'On: at most one anonymous message a day.' : WHY[t.blockedBy]);
+  console.log(`\nThe next message would be:\n${JSON.stringify(t.next, null, 2)}`);
+  console.log(t.lastPayload ? `\nLast sent ${t.lastSentAt}:\n${JSON.stringify(t.lastPayload, null, 2)}` : '\nNothing has been sent.');
+  console.log('\nWhat each field means: https://scintle.github.io/scintle/trust/telemetry/');
 }
 
 const [cmd = '', ...rest] = process.argv.slice(2);
@@ -115,6 +162,13 @@ switch (cmd) {
   case 'ensure':
     console.log((await ensure())?.url ?? 'not running');
     break;
+  case 'add': {
+    const r = (await request('/api/folders', { path: rest[0] ?? process.cwd() })) as { ok?: boolean; path?: string; error?: string } | undefined;
+    console.log(r === undefined ? 'Scintle could not start.' : r.ok
+      ? `Scintle now reads ${r.path}. Its plans and docs are read on the next catch-up; remove it any time from Folders on the board.`
+      : `Not added: ${r.error}.`);
+    break;
+  }
   case 'stop':
     console.log((await stop()) ? 'Scintle stopped.' : 'Scintle was not running.');
     break;
@@ -126,10 +180,16 @@ switch (cmd) {
   case 'import':
     await importCmd(rest);
     break;
+  case 'telemetry':
+    telemetryCmd(rest);
+    break;
+  case 'forget':
+    await forgetCmd(rest);
+    break;
   case 'ideas':
     console.log(lineageReport(openDb(dbPath())));
     break;
   default:
-    console.error('usage: scintle open | sync | ensure | stop | hook | brief <I-001> | ideas\n       scintle import [--dry-run] [--fresh] [--no-extract] [--limit N] [--session ID] [--model M]');
+    console.error('usage: scintle open | sync | ensure | stop | hook | add [path] | brief <I-001> | ideas | telemetry [status|enable|disable] | forget [--yes]\n       scintle import [--dry-run] [--fresh] [--no-extract] [--limit N] [--session ID] [--model M]');
     process.exitCode = 2;
 }

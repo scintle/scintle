@@ -45,20 +45,26 @@
 - SQLite is the single source of truth.
 - "Plan implementation", not "Start". Scintle writes the brief; your planner makes the plan.
 - Per-harness, per-version parsers normalise into Scintle's *own* skeleton.
-- No telemetry.
+- Telemetry only as D26: opt-in, no ID, totals only.
 
 **Code rules:** readable code with no bloat; comments only where the *why* isn't obvious.
 
-## Me test (definition of done for v1)
+## Beta readiness (replaces the me test, 2026-11-24)
 
-Two weeks of real use. Pass if:
-1. You open Scintle instead of scrolling old chats at least 3 times without being prompted.
-2. Upkeep is a few corrections a week.
-3. Most inferred stages and pivots are right.
-4. At least once, a brief stops a plan from repeating a dead end.
-5. You close an idea on purpose. This one is optional.
+The two-week me test was dropped: the author uses Scintle daily, and the next goal is a public beta. The beta plan
+(R1–R6) lives in `~/.claude/plans/velvet-floating-gosling.md`; its status:
 
-**Fail signal:** you stop opening it by week two.
+| # | What | State |
+|---|---|---|
+| R1 | Release zip (D27), Node check, Linux opener, `/scintle:forget`, LICENSE, 0.1.0 | Done; zip installs cleanly into a throwaway Claude config |
+| R2 | Cost on the consent screen, redaction test on a synthetic history, failure messages | Done |
+| R3 | Opt-in usage count (D26): client, board question, `/scintle:telemetry`, collector | Done; collector tested locally with wrangler; **deploying it is the owner's step** |
+| R4 | Help and feedback with redacted diagnostics, issue templates | Done |
+| R5 | Docs site (Astro + Starlight, terminal theme), landing page with the D28 pitch, README | Done locally; deploys on first push |
+| R6 | CI (macOS + Linux), docs and release workflows | Written; **first run needs the GitHub org and a push** |
+
+Still open: a clean-machine install test on a fresh macOS account and on Linux; the two "trail alerts" test
+sessions in the owner's `~/.claude/projects`.
 
 ## Architecture
 
@@ -212,7 +218,7 @@ Port the v3 mock's behaviour into components, keeping what you liked and fixing 
 
 ## Out of scope for v1
 
-- Telemetry.
+- Telemetry beyond D26's opt-in daily count.
 - Teams and sharing.
 - Codex and other harness parsers. The registry is ready for them.
 - ChatGPT and claude.ai importers.

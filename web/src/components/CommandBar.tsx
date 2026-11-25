@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { post, type AskReply } from '../lib/api';
-import { CLOSED_STAGES, isUnsure, namesOf, relTime } from '../lib/derive';
+import { CLOSED_STAGES, namesOf, relTime } from '../lib/derive';
 import type { Ev, Idea, Link } from '../lib/types';
 import { useStore } from '../store';
 import { Modal } from './Dialogs';
@@ -113,8 +113,7 @@ export function CommandBar({ byIdea }: { byIdea: Map<string, Ev[]> }) {
       const n = norm(t);
       const hits = ideas.filter((i) => n === '' || namesOf(byIdea.get(i.id) ?? [], i).some((x) => norm(x).includes(n)) || i.id.toLowerCase() === n);
       for (const i of hits.slice(0, 8)) {
-        const unsure = (byIdea.get(i.id) ?? []).some(isUnsure);
-        out.push({ key: i.id, label: i.title, hint: `${i.id} · ${i.stage}${unsure ? ' · unsure' : ''}`, run: () => open(i.id) });
+        out.push({ key: i.id, label: i.title, hint: `${i.id} · ${i.stage}`, run: () => open(i.id) });
       }
     }
     if (t === '') {

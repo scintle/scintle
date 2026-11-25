@@ -22,14 +22,20 @@ export type NewEvent = {
   sessionId?: string;
   turnSeq?: number;
   quote?: string;
+  quoteBy?: QuoteBy;
   excerpt?: string;
   supersedes?: number;
 };
 
-export type IdeaRow = { id: string; title: string; problem: string; stage: Stage; created_at: string; updated_at: string; closed_at: string | null };
+/** Why an ended idea ended (D24). Only the person sets `not-interested`; the model may suggest the middle three. */
+const RESOLUTIONS = ['released', 'pivoted', 'merged', 'not-interested', 'crowded', 'no-demand', 'not-feasible', 'other'] as const;
+type Resolution = (typeof RESOLUTIONS)[number];
+export const DROP_REASONS = new Set<string>(['not-interested', 'crowded', 'no-demand', 'not-feasible', 'other']);
+
+export type IdeaRow = { id: string; title: string; problem: string; stage: Stage; created_at: string; updated_at: string; closed_at: string | null; resolution: Resolution | null };
 export type EventRow = {
   id: number; idea_id: string; type: EventType; ts: string; payload: string; confidence: number | null;
-  origin: string; state: string; session_id: string | null; turn_seq: number | null; quote: string | null;
+  origin: string; state: string; session_id: string | null; turn_seq: number | null; quote: string | null; quote_by: QuoteBy | null;
   excerpt: string | null; supersedes: number | null; created_at: string;
 };
 
@@ -88,14 +94,20 @@ export function resetInferred(db: Db): void {
   });
 }
 
+/** Who a quote is from, kept with the event so it outlives the transcript: the person, Claude, or a saved document. */
+export type QuoteBy = 'you' | 'claude' | 'document';
+
 export function addEvent(db: Db, e: NewEvent): number {
   const state = e.origin === 'user' ? 'confirmed' : 'dotted';
+  const by = e.quoteBy ?? (e.quote && e.sessionId && e.turnSeq !== undefined
+    ? (db.prepare(`SELECT CASE t.role WHEN 'user' THEN 'you' WHEN 'command' THEN 'you' WHEN 'assistant' THEN 'claude' WHEN 'doc' THEN 'document' END AS by FROM turns t WHERE t.session_id = ? AND t.seq = ?`).get(e.sessionId, e.turnSeq) as { by: QuoteBy | null } | undefined)?.by ?? null
+    : null);
   const r = db.prepare(
-    `INSERT INTO events (idea_id, type, ts, payload, confidence, origin, state, session_id, turn_seq, quote, excerpt, supersedes, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO events (idea_id, type, ts, payload, confidence, origin, state, session_id, turn_seq, quote, quote_by, excerpt, supersedes, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     e.ideaId, e.type, e.ts, JSON.stringify(e.payload ?? {}), e.confidence ?? null, e.origin, state,
-    e.sessionId ?? null, e.turnSeq ?? null, e.quote ?? null, e.excerpt ?? null, e.supersedes ?? null, now(),
+    e.sessionId ?? null, e.turnSeq ?? null, e.quote ?? null, by, e.excerpt ?? null, e.supersedes ?? null, now(),
   );
   reproject(db, e.ideaId);
   return Number(r.lastInsertRowid);
@@ -123,6 +135,7 @@ export function reproject(db: Db, ideaId: string): void {
   let stage: Stage = 'seed';
   let lastOpen: Stage = 'seed';
   let closedAt: string | null = null;
+  let resolution: Resolution | null = null;
   let updated = '';
 
   for (const e of liveEvents(db, ideaId)) {
@@ -153,6 +166,7 @@ export function reproject(db: Db, ideaId: string): void {
       case 'revived':
         stage = lastOpen;
         closedAt = null;
+        resolution = null;
         break;
       case 'released':
       case 'dropped':
@@ -160,13 +174,16 @@ export function reproject(db: Db, ideaId: string): void {
       case 'merged':
         stage = e.type === 'pivoted' || e.type === 'merged' ? 'evolved' : e.type;
         closedAt = e.ts;
+        resolution = e.type === 'dropped'
+          ? (DROP_REASONS.has(str('reason') ?? '') ? (str('reason') as Resolution) : 'other')
+          : e.type;
         break;
     }
     if (OPEN_STAGES.has(stage)) lastOpen = stage;
   }
   if (title === undefined) return;
-  db.prepare('UPDATE ideas SET title = ?, problem = ?, stage = ?, closed_at = ?, updated_at = ? WHERE id = ?')
-    .run(title, problem, stage, closedAt, updated, ideaId);
+  db.prepare('UPDATE ideas SET title = ?, problem = ?, stage = ?, closed_at = ?, resolution = ?, updated_at = ? WHERE id = ?')
+    .run(title, problem, stage, closedAt, resolution, updated, ideaId);
 }
 
 export function getIdea(db: Db, id: string): IdeaRow | undefined {
@@ -185,4 +202,11 @@ export function linksOf(db: Db, ideaId: string): { from_idea: string; to_idea: s
        AND (l.event_id IS NULL OR (e.state != 'removed'
          AND NOT EXISTS (SELECT 1 FROM events c WHERE c.supersedes = e.id AND c.state != 'removed')))`,
   ).all(ideaId, ideaId) as { from_idea: string; to_idea: string; type: string }[];
+}
+
+/** Recompute every idea's projection, e.g. after a migration adds a derived column. */
+export function reprojectAll(db: Db): void {
+  transact(db, () => {
+    for (const { id } of db.prepare('SELECT id FROM ideas').all() as { id: string }[]) reproject(db, id);
+  });
 }

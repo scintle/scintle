@@ -104,6 +104,11 @@ const MIGRATIONS: readonly string[] = [
    INSERT OR IGNORE INTO anchors SELECT idea_id, session_id, turn_seq FROM events WHERE type = 'born';`,
   `ALTER TABLE sessions ADD COLUMN text_stored INTEGER NOT NULL DEFAULT 1;
    ALTER TABLE sessions ADD COLUMN est_chars INTEGER NOT NULL DEFAULT 0;`,
+  `ALTER TABLE ideas ADD COLUMN resolution TEXT;`,
+  `CREATE TABLE folders (path TEXT PRIMARY KEY, added_at TEXT NOT NULL);`,
+  `ALTER TABLE events ADD COLUMN quote_by TEXT;
+   UPDATE events SET quote_by = (SELECT CASE t.role WHEN 'user' THEN 'you' WHEN 'command' THEN 'you' WHEN 'assistant' THEN 'claude' WHEN 'doc' THEN 'document' END FROM turns t WHERE t.session_id = events.session_id AND t.seq = events.turn_seq)
+   WHERE quote IS NOT NULL;`,
 ];
 
 export function openDb(path: string): Db {

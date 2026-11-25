@@ -3,7 +3,12 @@
 import { create } from 'zustand';
 import { getState, post } from './lib/api';
 import { parseEvents } from './lib/derive';
-import type { ActionResult, Ev, Snapshot, Undo } from './lib/types';
+import type { Caption } from './lens/lens';
+import type { ActionResult, Ev, Resolution, Snapshot, Undo } from './lib/types';
+import type { StatusGroup } from './lens/model';
+
+/** Preset ranges in days, or a custom from/to (epoch ms, either end open). */
+export type RangeChoice = { kind: 'all' } | { kind: 'last'; days: number } | { kind: 'custom'; from: number | null; to: number | null };
 
 export type View = 'board' | 'river' | 'constellation';
 type Toast = { id: number; text: string; undo?: Undo };
@@ -16,7 +21,16 @@ type State = {
   project: string | null;
   selected: string | null;
   openEvent: number | null;
-  dialog: null | 'new' | 'cmd' | 'consent' | { brief: string };
+  dialog: null | 'new' | 'cmd' | 'consent' | 'folders' | 'telemetry' | 'help' | { brief: string };
+  groups: Set<StatusGroup>;
+  /** Moments a replay has played so far, newest last; null when no replay is showing. */
+  reel: Caption[] | null;
+  setReel: (r: Caption[] | null | ((r: Caption[]) => Caption[])) => void;
+  reasons: Set<Resolution>;
+  toggleReason: (r: Resolution | null) => void;
+  range: RangeChoice;
+  toggleGroup: (g: StatusGroup | null) => void;
+  setRange: (r: RangeChoice) => void;
   toasts: Toast[];
   load: () => Promise<void>;
   setView: (v: View) => void;
@@ -53,12 +67,40 @@ export const useStore = create<State>((set, get) => ({
   snap: null,
   events: [],
   error: null,
-  view: remembered<View>('scintle.view', 'board'),
+  view: remembered<View>('scintle.view', 'river'),
   project: remembered<string>('scintle.project', '') || null,
   selected: null,
   openEvent: null,
   dialog: null,
   toasts: [],
+  groups: new Set(),
+  reel: null,
+  // A closed feed stays closed for the rest of that replay.
+  setReel: (r) => set({ reel: typeof r === 'function' ? (get().reel === null ? null : r(get().reel ?? [])) : r }),
+  reasons: new Set(),
+  toggleReason: (r) => {
+    if (r === null) return set({ reasons: new Set() });
+    const next = new Set(get().reasons);
+    if (next.has(r)) next.delete(r); else next.add(r);
+    set({ reasons: next });
+  },
+  range: (() => {
+    try {
+      return JSON.parse(localStorage.getItem('scintle.range') ?? '{"kind":"all"}') as RangeChoice;
+    } catch {
+      return { kind: 'all' } as RangeChoice;
+    }
+  })(),
+  toggleGroup: (g) => {
+    if (g === null) return set({ groups: new Set() });
+    const next = new Set(get().groups);
+    if (next.has(g)) next.delete(g); else next.add(g);
+    set({ groups: next });
+  },
+  setRange: (range) => {
+    remember('scintle.range', JSON.stringify(range));
+    set({ range });
+  },
 
   load: async () => {
     // Coalesce bursts of change notifications into one fetch at a time.

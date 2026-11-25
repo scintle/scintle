@@ -82,7 +82,7 @@ Two weeks of real use. Pass if:
 
 ## Out of scope for v1
 
-- Telemetry.
+- Telemetry beyond D26's opt-in daily count.
 - Teams and sharing.
 - Harnesses other than Claude Code.
 - ChatGPT and claude.ai importers.
