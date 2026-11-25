@@ -2,14 +2,23 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "scintle",
   "description": "The Scintle plugin for Claude Code.",
-  "owner": { "name": "scintle contributors", "url": "https://github.com/scintle/scintle" },
+  "owner": {
+    "name": "scintle contributors",
+    "url": "https://github.com/scintle/scintle"
+  },
   "plugins": [
     {
       "name": "scintle",
       "description": "Your AI chats, turned into a history of your ideas.",
-      "author": { "name": "scintle contributors" },
+      "author": {
+        "name": "scintle contributors"
+      },
       "category": "Productivity",
-      "source": "./",
+      "source": {
+        "source": "archive",
+        "url": "https://github.com/scintle/scintle/releases/download/v0.1.0/scintle-0.1.0.zip",
+        "sha256": "15300a67129c01bfb06510edd79c79bc3f6d1e5a30408d908d038412ca334bbf"
+      },
       "homepage": "https://scintle.github.io/scintle/"
     }
   ]
