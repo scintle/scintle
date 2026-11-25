@@ -13,7 +13,7 @@ trap 'rm -rf "$stage"' EXIT
 
 # marketplace.json stays out: it holds this zip's hash.
 git archive --format=tar --prefix=scintle/ "$ref" -- \
-  .claude-plugin/plugin.json hooks commands server web/dist \
+  .claude-plugin/plugin.json hooks commands skills server web/dist \
   LICENSE NOTICE README.md \
   | tar -x -C "$stage"
 

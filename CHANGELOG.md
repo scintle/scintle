@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- `/scintle` opens the board as written. It was only reachable as `/scintle:scintle`; it is now a skill, which Claude Code runs by its bare name. Claude never opens the board on its own.
+
 ## 0.1.1
 
 - Dropping an idea asks an optional "Anything to remember?" in your own words; it shows on the timeline.

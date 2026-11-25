@@ -98,7 +98,8 @@ scintle/
   context/            AI-facing specs and plans (see below)
   .claude-plugin/     plugin.json, marketplace.json
   hooks/hooks.json
-  commands/           scintle.md, plan.md, stop.md
+  skills/scintle/     SKILL.md: /scintle itself (a skill, so it runs bare, not as /scintle:scintle)
+  commands/           plan.md, stop.md, …
   server/             strip-types TS, zero runtime deps
     ingest/           harness parsers → skeleton
     store/            schema, migrations, queries

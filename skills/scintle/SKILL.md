@@ -1,5 +1,8 @@
 ---
+name: scintle
 description: Open your Scintle idea board
+# Only the person opens the board; Claude never does it on its own.
+disable-model-invocation: true
 allowed-tools: Bash(node:*), Bash(echo:*)
 ---
 

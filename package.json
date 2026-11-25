@@ -1,6 +1,6 @@
 {
   "name": "scintle",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Your AI chats, turned into a history of your ideas.",
   "private": true,
   "type": "module",
