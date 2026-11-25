@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 const home = mkdtempSync(join(tmpdir(), 'scintle-e2e-'));
-const env = { ...process.env, SCINTLE_HOME: home, SCINTLE_PORT: '4931' };
+// CI and DO_NOT_TRACK would switch usage sharing off; the test checks the board's own on/off flow.
+const env = { ...process.env, SCINTLE_HOME: home, SCINTLE_PORT: '4931', CI: '', DO_NOT_TRACK: '' };
 const cli = (...args: string[]): string =>
   execFileSync(process.execPath, ['--experimental-strip-types', '--no-warnings', join(import.meta.dirname, '../../server/cli.ts'), ...args], { env, encoding: 'utf8' });
 let base = '';
