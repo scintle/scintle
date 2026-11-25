@@ -357,3 +357,31 @@ Research: `~/Workspace/reports/Privacy first telemetry for Scintle.md`.
 **Cost:**
 - The companion that calls these routes is a Claude Code mod prototype outside this repo; until it ships, the routes are unused.
 - The new-session button drives Terminal.app through AppleScript, which asks for macOS automation permission the first time and ignores other terminals.
+
+## D31 · 2026-11-25 · What leaves the machine: no tools by default, a "no" stops the next call, Research split in three
+
+**Decision:**
+- Every `claude -p` call runs with `--permission-mode dontAsk`, no tools unless granted, `--strict-mcp-config`, `--setting-sources ''`, no slash commands and no saved session (`modelArgs` in `server/lib/model.ts`). `test/egress.spec.ts` holds these flags. It also fails if any file other than the research job grants a tool.
+- Extraction checks consent before every model call, not once per run. A "no" mid-run stops before the next call, and the unread session stays unread.
+- Research is three calls:
+  1. **Search:** WebSearch only, with the brief.
+  2. **Read:** WebFetch only, bound by `WebFetch(domain:…)` to the hosts of URLs that appeared in the search tool's own results (read from the stream). No brief, and fixed questions.
+  3. **Write:** no tools, with the brief and the notes (redacted).
+
+**Why:**
+- A reviewer of vibesenpai on awesome-claude-code-mods (PR 552, 2026-11-25) found two leaks:
+  - revoking model reads didn't stop a pass already running;
+  - `--allowed-tools ''` left the built-in tools and MCP in place.
+
+  Scintle had the second right, but had the first bug.
+- WebFetch in the same call as the idea let a page's injected instructions carry idea text to any URL. Splitting the calls leaves nothing private in the call that reads pages.
+- Taking URLs from the search results stops the model inventing one with idea text in its path.
+- Tested 2026-11-25 with `claude -p`:
+  - a host outside the rules was refused and reported in `permission_denials`;
+  - a cross-host redirect was not followed;
+  - a full run took 3 calls and 60 s.
+
+**Cost:**
+- Research takes 3 calls instead of 1.
+- Pages behind a cross-host redirect go unread.
+- Search queries still carry words from the idea, which is inherent to searching.

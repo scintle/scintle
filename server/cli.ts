@@ -68,6 +68,8 @@ async function importCmd(args: string[]): Promise<void> {
   const model = flag(args, '--model');
   const r = await extractAll(db, ids, {
     ...(model !== undefined ? { model } : {}),
+    // `scintle import` is typed by the person: that is the yes.
+    allowed: () => true,
     onSegment: (s, done, total) => {
       console.log(`[${done}/${total}] ${s.sessionId.slice(0, 8)} ideas+${s.ideas} events+${s.events}${s.question ? ' question' : ''}` +
         (s.dropped.length > 0 ? ` dropped=${s.dropped.length}` : '') + (s.error ? ` ERROR ${s.error}` : ''));

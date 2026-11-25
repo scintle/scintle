@@ -24,7 +24,7 @@ export function TelemetryAsk() {
   return (
     <div className="question telemetry-ask" role="region" aria-label="Usage sharing">
       <span className="eyebrow">One question</span>
-      <p>Share an anonymous daily count? At most one message a day: Scintle’s version, your OS, and whether it’s your first use this week. No ID, and nothing about your ideas or sessions. <button className="q-idea" onClick={() => setDialog('telemetry')}>See the exact message</button></p>
+      <p>Share an anonymous daily count? No ID, nothing about your ideas. <button className="q-idea" onClick={() => setDialog('telemetry')}>See the exact message</button></p>
       <div className="acts">
         <button className="btn small" onClick={() => answer(true)}>Yes, share</button>
         <button className="btn small ghost" onClick={() => answer(false)}>No thanks</button>

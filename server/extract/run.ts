@@ -6,7 +6,7 @@
 
 import type { Db } from '../store/db.ts';
 import { callModel, type ModelReply } from '../lib/model.ts';
-import { callsToday, DAILY_CALL_CAP, recordCall } from '../store/upkeep.ts';
+import { callsToday, consented, DAILY_CALL_CAP, recordCall } from '../store/upkeep.ts';
 import { applyExtraction } from './apply.ts';
 import { buildPrompt } from './prompt.ts';
 import { EXTRACTION_SCHEMA, sanitize } from './schema.ts';
@@ -14,7 +14,7 @@ import { pendingTurns, segments, type SegTurn } from './segment.ts';
 
 type Call = (prompt: string, schema: object) => Promise<ModelReply<unknown> | { error: string }>;
 export type SegmentRun = { sessionId: string; ideas: number; events: number; dropped: string[]; question: boolean; error?: string };
-type RunSummary = { calls: number; segments: SegmentRun[]; stopped?: string };
+type RunSummary = { calls: number; segments: SegmentRun[]; stopped?: string; revoked?: true };
 
 function markExtracted(db: Db, sessionId: string, seq: number): void {
   db.prepare('UPDATE sessions SET turns_extracted = MAX(turns_extracted, ?) WHERE id = ?').run(seq, sessionId);
@@ -31,7 +31,7 @@ export function sessionsToExtract(db: Db): string[] {
 export async function extractAll(
   db: Db,
   ids: string[] = sessionsToExtract(db),
-  opts: { model?: string; call?: Call; onSegment?: (r: SegmentRun, done: number, total: number) => void } = {},
+  opts: { model?: string; call?: Call; onSegment?: (r: SegmentRun, done: number, total: number) => void; allowed?: () => boolean } = {},
 ): Promise<RunSummary> {
   const call: Call = opts.call ?? ((p, s) => callModel<unknown>(p, s, opts.model === undefined ? {} : { model: opts.model }));
   const pending = new Map(ids.map((id) => [id, pendingTurns(db, id)]));
@@ -42,6 +42,11 @@ export async function extractAll(
   const failed = new Set<string>();
   for (const [n, { id, seg }] of queue.entries()) {
     if (failed.has(id)) continue;
+    // A "no" given mid-run stops the next call, not just the next run; a call already sent still lands.
+    if (!(opts.allowed ?? (() => consented(db)))()) {
+      summary.revoked = true;
+      return summary;
+    }
     if (callsToday(db) >= DAILY_CALL_CAP) {
       summary.stopped = `daily cap of ${DAILY_CALL_CAP} model calls reached; resumes tomorrow`;
       return summary;

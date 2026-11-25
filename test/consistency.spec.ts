@@ -4,12 +4,14 @@ import { buildPrompt } from '../server/extract/prompt.ts';
 import { extractAll } from '../server/extract/run.ts';
 import { openDb, type Db } from '../server/store/db.ts';
 import { addEvent, createIdea, getIdea, liveEvents, resetInferred } from '../server/store/ledger.ts';
+import { setConsent } from '../server/store/upkeep.ts';
 
 function setup(): Db {
   const db = openDb(':memory:');
   const s = db.prepare("INSERT INTO sessions (id, harness, parser, parser_match, transcript_path, started_at) VALUES (?, 'claude-code', 'p', 'exact', '/x', ?)");
   s.run('A', '2026-11-20T09:00:00Z');
   s.run('B', '2026-11-20T08:00:00Z');
+  setConsent(db, true);
   return db;
 }
 const turn = (db: Db, session: string, seq: number, ts: string, role: string, text: string) =>
@@ -84,5 +86,23 @@ describe('segment overlap', () => {
       new_ideas: [{ ref: 'new:1', title: 'Ledger', problem: '', seq: 0, quote: 'calling it the ledger', confidence: 0.9 }], events: [], question: null,
     });
     expect(r.ideas).toBe(0);
+  });
+});
+
+describe('saying no mid-run', () => {
+  it('stops before the next model call, and leaves the unread session unread', async () => {
+    const db = setup();
+    turn(db, 'A', 0, '2026-11-20T10:00:00Z', 'user', 'alpha one');
+    turn(db, 'B', 0, '2026-11-20T09:00:00Z', 'user', 'bravo one');
+    let calls = 0;
+    const r = await extractAll(db, ['A', 'B'], {
+      // The person turns reading off while the first call is out.
+      call: () => { calls++; setConsent(db, false); return ok(none); },
+    });
+    expect(calls).toBe(1);
+    expect(r.revoked).toBe(true);
+    const cursor = (id: string) => (db.prepare('SELECT turns_extracted AS n FROM sessions WHERE id = ?').get(id) as { n: number }).n;
+    expect(cursor('B')).toBe(0);
+    expect(cursor('A')).toBe(-1);
   });
 });

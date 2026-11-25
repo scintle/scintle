@@ -1,6 +1,6 @@
 /**
  * The one way Scintle calls a model: the user's own `claude -p` (context/decisions.md D9).
- * Trimmed to the prompt alone (no default tools, MCP, skills or user settings) and one round trip:
+ * Trimmed to the prompt alone (no tools unless granted, no MCP, skills or user settings) and one round trip:
  * the schema goes in the prompt and the reply is checked here (D17).
  */
 
@@ -32,20 +32,51 @@ function jsonIn(text: string): unknown {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-export function callModel<T>(
-  prompt: string,
-  schema: object,
-  opts: { model?: string; timeoutMs?: number; tools?: string } = {},
-): Promise<ModelReply<T> | { error: string }> {
-  const full = `${prompt}\n\nReply with only a JSON object matching this JSON Schema:\n${JSON.stringify(schema)}`;
-  if (wouldLeak(full)) return Promise.resolve({ error: 'prompt failed the redaction check' });
-  const tools = opts.tools ?? '';
-  const args = [
-    '-p', '--output-format', 'json', '--model', opts.model ?? process.env['SCINTLE_MODEL'] ?? 'sonnet',
-    '--tools', tools, '--allowed-tools', tools,
+/** What a call may do: tools it has, and the permission rules that pre-approve them. Nothing else runs (dontAsk). */
+export type Grant = { tools: string[]; allow: string[] };
+const NONE: Grant = { tools: [], allow: [] };
+
+/** The `claude -p` arguments for a call: no settings, MCP, slash commands or saved session; only the granted tools. */
+export function modelArgs(grant: Grant, model: string): string[] {
+  return [
+    '-p', '--output-format', 'stream-json', '--verbose', '--model', model,
+    '--tools', grant.tools.join(','), '--allowed-tools', grant.allow.join(','), '--permission-mode', 'dontAsk',
     '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', '', '--no-session-persistence',
     '--system-prompt', SYSTEM,
   ];
+}
+
+type Final = {
+  type: 'result'; is_error?: boolean; result?: string; duration_ms?: number;
+  usage?: { input_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number };
+};
+
+/** The final result line and every tool result's text from a stream-json transcript. */
+export function readStream(stdout: string): { final: Final | undefined; toolResults: string[] } {
+  let final: Final | undefined;
+  const toolResults: string[] = [];
+  for (const line of stdout.split('\n')) {
+    if (!line.startsWith('{')) continue;
+    let d: { type?: string; message?: { content?: unknown } };
+    try { d = JSON.parse(line) as typeof d; } catch { continue; }
+    if (d.type === 'result') final = d as Final;
+    if (d.type === 'user' && Array.isArray(d.message?.content)) {
+      for (const c of d.message.content as { type?: string; content?: unknown }[]) {
+        if (c.type === 'tool_result') toolResults.push(typeof c.content === 'string' ? c.content : JSON.stringify(c.content));
+      }
+    }
+  }
+  return { final, toolResults };
+}
+
+export function callModel<T>(
+  prompt: string,
+  schema: object,
+  opts: { model?: string; timeoutMs?: number; grant?: Grant } = {},
+): Promise<(ModelReply<T> & { toolResults: string[] }) | { error: string }> {
+  const full = `${prompt}\n\nReply with only a JSON object matching this JSON Schema:\n${JSON.stringify(schema)}`;
+  if (wouldLeak(full)) return Promise.resolve({ error: 'prompt failed the redaction check' });
+  const args = modelArgs(opts.grant ?? NONE, opts.model ?? process.env['SCINTLE_MODEL'] ?? 'sonnet');
   return new Promise((resolve) => {
     const child = execFile(
       'claude',
@@ -59,10 +90,8 @@ export function callModel<T>(
       (err, stdout) => {
         if (err !== null) return resolve({ error: err.message.split('\n')[0] ?? 'claude -p failed' });
         try {
-          const r = JSON.parse(stdout) as {
-            is_error?: boolean; result?: string; duration_ms?: number;
-            usage?: { input_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number };
-          };
+          const { final: r, toolResults } = readStream(stdout);
+          if (r === undefined) return resolve({ error: 'no reply' });
           if (r.is_error === true || typeof r.result !== 'string') return resolve({ error: r.result ?? 'no reply' });
           const u = r.usage ?? {};
           resolve({
@@ -70,6 +99,7 @@ export function callModel<T>(
             durationMs: r.duration_ms ?? 0,
             inputTokens: (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0),
             outputTokens: u.output_tokens ?? 0,
+            toolResults,
           });
         } catch (e) {
           resolve({ error: `unreadable reply: ${(e as Error).message}` });

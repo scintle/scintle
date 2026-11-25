@@ -24,7 +24,17 @@ Beside it: the logos drawn for your ideas, research reports you asked for, the s
 
 ## What it sends
 
-- **To your own `claude` command, for reading sessions.** Scintle runs `claude -p` with your login, so session text goes to Anthropic under your account, exactly as when you chat. At most 200 calls a day by default.
+- **To your own `claude` command.** Scintle runs `claude -p` with your login, so text goes to Anthropic under your account, exactly as when you chat. At most 200 calls a day by default. It does this to:
+  - read your sessions and documents into ideas, after you say yes;
+  - draw a logo for an idea, after you say yes;
+  - answer a question you type in ⌘K;
+  - research an idea, when you press **Research**.
+
+  These calls have no tools, none of your MCP servers, settings or hooks, and can't ask for more. Saying no stops reading before the next call.
+- **To the web, only when you press Research.** Research makes three calls, so the one that reads pages never sees your idea:
+  1. A web search, with the idea's brief. Search words come from your idea.
+  2. Reading the pages that search returned, and only those sites. This call isn't told your idea.
+  3. Writing the report, with no tools at all.
 - **An anonymous daily count, only if you said yes.** Off by default. See [Telemetry](/scintle/trust/telemetry/).
 - **Nothing else.** The board is served from `127.0.0.1` and needs a token to open; nothing on it loads from the internet.
 

@@ -3,6 +3,13 @@ title: Changelog
 description: What changed in each Scintle release.
 ---
 
+## 0.1.3
+
+- Turning reading off now stops an import already running, before its next model call.
+- Every model call runs with no tools, MCP servers, settings or hooks, and can't ask for more; a test holds this.
+- Research is three calls: a web search, then reading only the pages that search returned (without your idea), then writing the report with no tools.
+- The usage-sharing question is one short line.
+
 ## 0.1.2
 
 - `/scintle` opens the board as written. It was only reachable as `/scintle:scintle`; it is now a skill, which Claude Code runs by its bare name. Claude never opens the board on its own.
