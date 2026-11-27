@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7
+
+- If `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or a cloud provider is set where Claude Code starts, its `claude -p` bills that instead of your Claude plan. Scintle now says so on the consent card and at the top of the board, with how to switch back.
+- The project menu's Folders, Usage sharing and Help and feedback lose their trailing dots.
+
 ## 0.1.6
 
 - Plan implementation shows the idea's story instead of a raw brief: how it got here, its lifecycle, decisions and dead ends with the words behind them, and what Claude will be asked. Copy brief, the `/scintle:plan` command and Plan in a new session sit on one row.
