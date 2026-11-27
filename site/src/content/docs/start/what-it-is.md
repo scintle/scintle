@@ -13,7 +13,7 @@ Scintle is a Claude Code plugin that keeps that story for you. It reads your ses
 
 ## What makes it different
 
-- **It keeps itself.** You never fill in a form. Scintle infers events and shows them as inferred (dotted) until you keep or correct them.
+- **It finds your ideas on its own.** You never type an idea in or fill in a form. Scintle spots ideas in the chats you already had and the ones you're having now, infers events and shows them as inferred (dotted) until you keep or correct them.
 - **You correct, you don't approve.** When it's wrong, one click fixes it; when it's unsure, it asks one question at a time, at most one per session.
 - **It stays on your machine.** It reads Claude's own folder, stores a local database, and reads sessions with your own `claude` login. See [What it reads, stores and sends](/scintle/trust/privacy/).
 

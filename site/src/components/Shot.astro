@@ -1,15 +1,22 @@
 ---
 // A product screenshot from src/assets/home/shots/<name>.png or .jpg, framed; a labelled empty frame until it is taken.
+// With `video`, a looping muted clip from public/demo/<video>.{webm,mp4,jpg} instead.
 import { Image } from 'astro:assets';
 
-interface Props { name: string; alt: string; caption?: string }
-const { name, alt, caption } = Astro.props;
+interface Props { name: string; alt: string; caption?: string; video?: string }
+const { name, alt, caption, video } = Astro.props;
+const demo = '/scintle/demo';
 const shots = import.meta.glob<{ default: ImageMetadata }>('../assets/home/shots/*.{png,jpg}', { eager: true });
 const found = (shots[`../assets/home/shots/${name}.png`] ?? shots[`../assets/home/shots/${name}.jpg`])?.default;
 ---
 
 <figure class="shot">
-  {found
+  {video !== undefined
+    ? <video data-demo autoplay muted loop playsinline preload="metadata" width="1440" height="900" poster={`${demo}/${video}.jpg`} aria-label={alt}>
+        <source src={`${demo}/${video}.mp4`} type="video/mp4" />
+        <source src={`${demo}/${video}.webm`} type="video/webm" />
+      </video>
+    : found
     ? <Image src={found} alt={alt} widths={[640, 960, 1280]} sizes="(max-width: 860px) 92vw, 640px" />
     : <div class="empty" role="img" aria-label={alt}><span>Screenshot: {name}</span></div>}
   {caption !== undefined && <figcaption>{caption}</figcaption>}
@@ -18,6 +25,7 @@ const found = (shots[`../assets/home/shots/${name}.png`] ?? shots[`../assets/hom
 <style>
   .shot { margin: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--vs-line); background: var(--vs-panel); box-shadow: 0 30px 90px -40px var(--vs-glow); }
   .shot { padding: clamp(10px, 1.6vw, 18px); }
+  .shot video { display: block; width: 100%; height: auto; aspect-ratio: 1440 / 900; border-radius: 8px; background: #0c0e14; }
   .shot :global(img) { display: block; width: 100%; height: auto; border-radius: 8px; }
   figcaption { padding: 10px 14px; font-size: 13px; color: var(--vs-quiet); border-top: 1px solid var(--vs-line); }
   .empty { aspect-ratio: 4 / 3; display: grid; place-items: center; color: var(--vs-quiet); font-size: 14px; }

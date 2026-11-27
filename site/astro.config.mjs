@@ -16,11 +16,11 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Scintle',
-      description: 'Your AI chats, turned into a history of your ideas. Scintle keeps the story of every idea: how it started, how it changed, and where it ended up.',
+      description: 'Your AI chats, turned into a history of your ideas. You never type an idea in. Scintle finds every idea in your chats on its own and keeps its story: how it started, how it changed, and where it ended up.',
       logo: { src: './src/assets/mark.svg' },
       favicon: '/favicon.svg',
       customCss: ['./src/styles/brand.css'],
-      components: { Hero: './src/components/HomeHero.astro' },
+      components: { Hero: './src/components/HomeHero.astro', SocialIcons: './src/components/HeaderLinks.astro' },
       plugins: [starlightLinksValidator(), starlightLlmsTxt({ projectName: 'Scintle' })],
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/scintle/scintle' }],
       editLink: { baseUrl: 'https://github.com/scintle/scintle/edit/main/site/' },

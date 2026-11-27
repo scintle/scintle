@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "scintle",
-      "description": "Your AI chats, turned into a history of your ideas.",
+      "description": "Your AI chats, turned into a history of your ideas, found on their own.",
       "author": {
         "name": "scintle contributors"
       },

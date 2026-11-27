@@ -1,7 +1,8 @@
 # Scintle
 
-**Your AI chats, turned into a history of your ideas.** Scintle keeps the story of every idea: how it
-started, how it changed, and where it ended up.
+**Your AI chats, turned into a history of your ideas, found on their own.** You never type an idea in.
+Scintle finds every idea in your chats on its own and keeps its story: how it started, how it changed, and
+where it ended up.
 
 It is a Claude Code plugin. This package only installs it, through Claude Code's own installer.
 

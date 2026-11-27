@@ -486,3 +486,14 @@ Research: `~/Workspace/reports/Privacy first telemetry for Scintle.md`.
 **Cost:**
 - "Caught from this chat" appears only when a batch lands, often after the session has ended, so most catches show as "Since last time".
 - The approved plan is read from the tool's result (this build), with the input as a fallback for older builds.
+
+## D36 · 2026-11-26 · The pitch leads with auto-discovery (amends D28)
+
+**Decision:**
+- **Hero line** stays as in D28. The one-line description adds ", found on their own."
+- **Subhead opens with discovery:** "You never type an idea in. Scintle finds every idea in your chats on its own and keeps its story…"
+- **First value block** is "Finds your ideas on its own" (was "Updates itself as you chat").
+- Same lead in both READMEs and the "What Scintle is" page.
+
+**Why:** idea trackers people know make you enter ideas by hand; Scintle never does, and the old copy only said so deep in the page. D28's research already found builders hate manual tracking. The subhead says "your chats", not "Claude Code", to keep D28's general pitch; the READMEs name Claude Code.
+

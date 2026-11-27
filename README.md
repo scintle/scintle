@@ -2,9 +2,9 @@
 
 **Your AI chats, turned into a history of your ideas.**
 
-Scintle keeps the story of every idea: how it started, how it changed, and where it ended up. It reads your
-Claude Code sessions as you work and keeps each idea under a stable ID with its whole history: renamed,
-narrowed, pivoted, parked, released, dropped. Nothing to maintain; you correct it when it's wrong.
+You never type an idea in. Scintle finds every idea in your Claude Code sessions on its own, in the chats
+you already had and the ones you're having now, and keeps each one under a stable ID with its whole history:
+renamed, narrowed, pivoted, parked, released, dropped. You only correct it when it's wrong.
 
 **Docs: [scintle.github.io/scintle](https://scintle.github.io/scintle/)**
 

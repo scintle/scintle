@@ -11,15 +11,16 @@ const inside = '/plugin marketplace add scintle/scintle\n/plugin install scintle
 const values = [
   {
     id: 'updates-itself',
-    title: 'Updates itself as you chat',
-    body: 'You never fill it in. Scintle reads your sessions as you work, and new ideas and changes appear on their own.',
+    title: 'Finds your ideas on its own',
+    body: 'No forms, nothing to type in. Say yes once, and Scintle reads your Claude Code sessions and saved plans, past and present, with your own Claude login. It spots each idea and every turn it takes; new ideas, pivots, pauses and releases appear on their own. You only fix what it got wrong.',
     points: [
-      ['Ideas come from chats you already had', `${base}/start/what-it-is/`],
+      ['What it reads, and what it never touches', `${base}/trust/privacy/#what-it-reads`],
+      ['New ideas and changes show up as you work', `${base}/start/what-it-is/`],
       ['One click to keep, fix or remove anything it got wrong', `${base}/using/correcting/`],
-      ['It asks only when it would otherwise guess', `${base}/using/questions/`],
     ],
     shot: 'lineage',
-    alt: 'The Lineage view: a dozen made-up ideas over five months, with a pivot, a spawn, a merge, two drops and a release.',
+    video: 'first-run',
+    alt: 'The first run, on made-up sessions: the consent card says what will be read and how many model calls it takes; after Start analyzing, ideas appear one by one as each session is read, until the river shows a trail app released, a standup bot that pivoted into Weekly Pulse, a parked recipe idea and a trip-money idea.',
   },
   {
     id: 'replay',
@@ -31,7 +32,8 @@ const values = [
       ['Bigger moments get a bigger beat', `${base}/using/views/`],
     ],
     shot: 'replay',
-    alt: 'A replay in progress: the timeline on the left at early October, and the moments so far on the right, from a release to a dropped idea.',
+    video: 'replay',
+    alt: 'Replay, sped up, on made-up ideas: five months play out as ideas are born on their day, a standup bot pivots into a digest, a plant app is dropped as a crowded market, a guitar log spins off a chord trainer, a trail app is released and two money ideas merge into one, while each moment stacks up on the right in the words that were said.',
   },
   {
     id: 'history',
@@ -43,7 +45,8 @@ const values = [
       ['Kept after the chat itself is deleted', `${base}/trust/privacy/`],
     ],
     shot: 'panel',
-    alt: 'An idea’s panel: Weekly Pulse, formerly Async status digest, pivoted from Standup bot, with its timeline.',
+    video: 'history',
+    alt: 'Opening an idea, on made-up ideas: Weekly Pulse, which pivoted from Standup bot, and stepping through its timeline from born to renamed, planned and building, each moment opening on the words behind it.',
   },
   {
     id: 'manage',
@@ -55,7 +58,8 @@ const values = [
       ['Add an idea by hand with one key', `${base}/using/correcting/#adding-an-idea-by-hand`],
     ],
     shot: 'board',
-    alt: 'The Board: ideas in columns from seed to building, each showing where it was left off.',
+    video: 'board',
+    alt: 'Managing the board, on made-up ideas: one idea is parked from its stage menu, then another is dropped as a crowded market with a note, “three timers already do this”, and the board updates.',
   },
   {
     id: 'pick-up',
@@ -67,7 +71,8 @@ const values = [
       ['Plans link back to the idea they came from', `${base}/using/planning/#the-way-back`],
     ],
     shot: 'constellation',
-    alt: 'The Constellation view: ideas as a graph of what is related to what.',
+    video: 'pickup',
+    alt: 'Coming back to an idea, on made-up ideas: Recipe scaler, parked and later revived, opens with its history; Plan implementation hands a brief with its decisions and dead ends to the planner.',
   },
 ];
 
@@ -92,14 +97,10 @@ const faq = [
     <div class="glow" aria-hidden="true"></div>
     <div class="copy">
       <h1 class="rise r1">Your AI chats, turned into a history of your ideas.</h1>
-      <p class="lede rise r2">Scintle keeps the story of every idea: how it started, how it changed, and where it ended up. Nothing to maintain. Pick any idea back up right where you left it.</p>
+      <p class="lede rise r2">You never type an idea in. Scintle finds every idea in your chats on its own and keeps its story: how it started, how it changed, and where it ended up. Pick any idea back up right where you left it.</p>
       <div class="actions rise r3">
-        <a class="primary" href="#install">Install</a>
-        <a class="quiet" href="#updates-itself">How it works</a>
-      </div>
-      <div class="oneline rise r4">
-        <code><span aria-hidden="true">$ </span>{npx}</code>
-        <button type="button" data-copy={npx} aria-label="Copy the install command">Copy</button>
+        <a class="primary" href={`${base}/start/install/`}>Get started</a>
+        <a class="secondary" href="https://github.com/scintle/scintle">View on GitHub</a>
       </div>
     </div>
     <div class="art rise r5">
@@ -115,6 +116,15 @@ const faq = [
     </div>
   </section>
 
+  <section class="quick reveal" aria-label="Install">
+    <p class="quick-label">Install with</p>
+    <div class="oneline">
+      <code><span aria-hidden="true">$ </span>{npx}</code>
+      <button type="button" data-copy={npx} aria-label="Copy the install command">Copy</button>
+    </div>
+    <p class="quick-needs">Needs Node.js 22.13+ and Claude Code, on macOS or Linux. <a href="#install">Other ways to install</a></p>
+  </section>
+
   {values.map((v, i) => (
     <section class:list={['value', 'reveal', { flip: i % 2 === 1 }]} id={v.id}>
       <div class="words">
@@ -125,7 +135,7 @@ const faq = [
         </ul>
       </div>
       <div class="picture">
-        <Shot name={v.shot} alt={v.alt} />
+        <Shot name={v.shot} alt={v.alt} video={v.video} />
       </div>
     </section>
   ))}
@@ -175,6 +185,17 @@ const faq = [
       v.pause();
       v.controls = true;
     }
+  }
+  // Section clips play only while on screen, so the page never runs several at once; this also restarts a stalled one.
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const seen = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const v = e.target as HTMLVideoElement;
+        if (e.isIntersecting) void v.play().catch(() => {});
+        else v.pause();
+      }
+    }, { threshold: 0.6 });
+    for (const v of document.querySelectorAll<HTMLVideoElement>('.shot video')) seen.observe(v);
   }
   // The hero demo is small by design; the corner button or a click on the video opens it fullscreen, with sound controls.
   for (const art of document.querySelectorAll<HTMLElement>('.art')) {
@@ -253,6 +274,16 @@ const faq = [
     padding: 12px 22px; border-radius: 2px; text-decoration: none; font-family: var(--sl-font-mono);
   }
   .quiet { font-weight: 500; }
+  .secondary {
+    display: inline-block; color: var(--vs-text) !important; font-weight: 600; border: 1px solid var(--vs-line);
+    padding: 11px 21px; border-radius: 2px; text-decoration: none; font-family: var(--sl-font-mono);
+  }
+  .secondary:hover { border-color: var(--vs-hat); }
+  .quick { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; text-align: left; margin-top: clamp(28px, 4vw, 48px); }
+  .quick + section { margin-top: clamp(56px, 7vw, 96px); }
+  .quick-label { margin: 0; font: 600 12px var(--sl-font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--vs-quiet); }
+  .quick .oneline { margin: 0; }
+  .quick-needs { margin: 0; font-size: 14px; color: var(--vs-quiet); }
   .install {
     position: relative; display: inline-block; text-align: left; max-width: 100%;
     background: color-mix(in srgb, var(--vs-hat) 8%, var(--vs-panel));

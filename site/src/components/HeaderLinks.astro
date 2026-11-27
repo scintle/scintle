@@ -1,0 +1,12 @@
+---
+// The header's right side: a Docs link before Starlight's own social icons, so the landing page has a way in.
+import Default from '@astrojs/starlight/components/SocialIcons.astro';
+---
+
+<a class="docs-link" href="/scintle/start/what-it-is/">Docs</a>
+<Default />
+
+<style>
+  .docs-link { color: var(--sl-color-white); text-decoration: none; font-size: var(--sl-text-sm); font-weight: 600; padding: 0 0.25rem; }
+  .docs-link:hover { color: var(--sl-color-accent-high); }
+</style>
