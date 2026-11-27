@@ -103,10 +103,6 @@ async function openCmd(): Promise<void> {
   // No display (SSH, containers): the link below is enough.
   if (opener !== undefined) execFile(opener, [url], () => undefined);
   console.log(`Scintle board: ${s.url}`);
-  // The server's environment decides who pays for model calls, so ask it rather than reading ours.
-  const state = await fetch(`${s.url}/api/state`, { headers: { 'x-scintle-token': s.token }, signal: AbortSignal.timeout(3000) })
-    .then((r) => r.json() as Promise<{ billedTo?: string | null }>).catch(() => null);
-  if (state?.billedTo) console.log(`Note: model calls are billed to ${state.billedTo}, not your Claude plan.`);
 }
 
 /** Deletes everything Scintle stored. Plugin uninstall leaves this folder alone (D27). */

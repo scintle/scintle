@@ -46,5 +46,5 @@ Scintle reads your sessions through your own `claude -p`. When one of these is s
 - `ANTHROPIC_AUTH_TOKEN`
 - `ANTHROPIC_API_KEY`
 
-Scintle then says so on the consent card, at the top of the board, and after `/scintle`. To use your Claude plan instead, remove the variable from your shell profile, run `/scintle stop`, and start Claude Code again from a fresh terminal.
+Scintle then says so on the consent card and at the top of the board. To use your Claude plan instead, remove the variable from your shell profile, run `/scintle stop`, and start Claude Code again from a fresh terminal.
 

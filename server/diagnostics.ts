@@ -43,7 +43,7 @@ export async function diagnostics(db: Db, readError: string | null): Promise<str
     `OS: ${process.platform} ${process.arch}`,
     `Node: ${process.version}`,
     `Claude Code: ${await claudeVersion()}`,
-    `Model calls billed to: ${billedTo() ?? 'the Claude Code login'}`,
+    ...(billedTo() === null ? [] : [`Model calls billed to: ${billedTo()}`]),
     `Sessions: ${count("SELECT COUNT(*) AS n FROM sessions WHERE harness != 'doc'")}, documents: ${count("SELECT COUNT(*) AS n FROM sessions WHERE harness = 'doc'")}`,
     `Ideas: ${count('SELECT COUNT(*) AS n FROM ideas')}, events: ${count('SELECT COUNT(*) AS n FROM events')}`,
     `Model calls today: ${usageToday(db).calls} of ${DAILY_CALL_CAP}`,
