@@ -38,8 +38,10 @@ Every idea, with its history, on a board in your browser. Replay plays it back o
 
 - **Reads** Claude's own folder, `~/.claude`, plus folders you add. Never anything else on your disk.
 - **Stores** one local database in `~/.local/share/scintle`, with secrets redacted before anything is written.
-- **Sends** session text, redacted, to your own `claude` command to read it, after you say yes; and an
-  anonymous daily count with no ID, only if you turn it on.
+- **Sends** session text, redacted, to your own `claude` command to read it, after you say yes. Those calls
+  have no tools. **Research**, only when you press it, lets `claude` search and read the web. Plus an
+  anonymous daily count with no ID, only if you turn it on. If `ANTHROPIC_API_KEY` or a cloud provider is
+  set, `claude` bills that instead of your Claude plan; Scintle tells you when it is.
 
 Details: [What it reads, stores and sends](https://scintle.github.io/scintle/trust/privacy/) ·
 [Telemetry](https://scintle.github.io/scintle/trust/telemetry/) ·

@@ -53,6 +53,8 @@ export type Snapshot = {
   waiting: { sessions: number; chars: number; chunks: number };
   progress: { done: number; total: number; startedAt: string } | null;
   readError: { message: string; at: string; capped: boolean } | null;
+  /** Set when an env var makes `claude -p` bill something other than the Claude plan. */
+  billedTo?: string | null;
   consent: boolean;
   logos: Record<string, string>;
   folders: { path: string; docs: number }[];

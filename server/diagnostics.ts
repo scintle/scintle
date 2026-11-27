@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { billedTo } from './lib/model.ts';
 import { dataDir } from './lib/config.ts';
 import { redact } from './lib/redact.ts';
 import type { Db } from './store/db.ts';
@@ -42,6 +43,7 @@ export async function diagnostics(db: Db, readError: string | null): Promise<str
     `OS: ${process.platform} ${process.arch}`,
     `Node: ${process.version}`,
     `Claude Code: ${await claudeVersion()}`,
+    `Model calls billed to: ${billedTo() ?? 'the Claude Code login'}`,
     `Sessions: ${count("SELECT COUNT(*) AS n FROM sessions WHERE harness != 'doc'")}, documents: ${count("SELECT COUNT(*) AS n FROM sessions WHERE harness = 'doc'")}`,
     `Ideas: ${count('SELECT COUNT(*) AS n FROM ideas')}, events: ${count('SELECT COUNT(*) AS n FROM events')}`,
     `Model calls today: ${usageToday(db).calls} of ${DAILY_CALL_CAP}`,

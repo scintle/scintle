@@ -10,6 +10,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { redact } from './redact.ts';
 
+/**
+ * Who pays for Scintle's model calls. `claude -p` uses these over the Claude subscription login when they
+ * are set, and asks no one (Claude Code auth precedence); Scintle passes its environment on, so it says so.
+ */
+export function billedTo(env: NodeJS.ProcessEnv = process.env): string | null {
+  if (env['CLAUDE_CODE_USE_BEDROCK'] === '1') return 'Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK)';
+  if (env['CLAUDE_CODE_USE_VERTEX'] === '1') return 'Google Vertex AI (CLAUDE_CODE_USE_VERTEX)';
+  if (env['CLAUDE_CODE_USE_FOUNDRY'] === '1') return 'Microsoft Foundry (CLAUDE_CODE_USE_FOUNDRY)';
+  if (env['ANTHROPIC_AUTH_TOKEN']) return 'the token in ANTHROPIC_AUTH_TOKEN';
+  if (env['ANTHROPIC_API_KEY']) return 'the API key in ANTHROPIC_API_KEY';
+  return null;
+}
+
 export type ModelReply<T> = { output: T; durationMs: number; inputTokens: number; outputTokens: number };
 
 const SYSTEM = 'You are a careful analyst for a local tool. Reply with one JSON object only: no prose, no code fence.';

@@ -25,6 +25,7 @@ import { snapshot } from './state.ts';
 import { openDb } from './store/db.ts';
 import { reprojectAll } from './store/ledger.ts';
 import { addFolder, folders, listEarlierFolders, removeFolder } from './ingest/docs.ts';
+import { billedTo } from './lib/model.ts';
 import { companionOn, consented, purgeDeleted, setCompanion, setConsent, skipHistory } from './store/upkeep.ts';
 import type { EventType } from './store/ledger.ts';
 
@@ -143,7 +144,7 @@ function folderList(): { path: string; docs: number }[] {
 }
 
 const routes: [string, RegExp, Handler][] = [
-  ['GET', /^\/api\/state$/, () => (consented(db) && (noteBoardOpen(), markUsed('board')), { ...snapshot(db), version, extracting: live.extracting ?? null, waiting: waiting(db), progress: live.progress, readError: live.lastError, consent: consented(db), logos: logos(), folders: folderList(), telemetry: telemetryStatus() })],
+  ['GET', /^\/api\/state$/, () => (consented(db) && (noteBoardOpen(), markUsed('board')), { ...snapshot(db), version, extracting: live.extracting ?? null, waiting: waiting(db), progress: live.progress, readError: live.lastError, consent: consented(db), logos: logos(), folders: folderList(), telemetry: telemetryStatus(), billedTo: billedTo() })],
   // Read-only: what a prompt that mentions ideas gets attached (the companion mod's prompt.submit hook).
   ['GET', /^\/api\/companion$/, () => ({ on: companionOn(db) && consented(db) })],
   ['POST', /^\/api\/companion$/, ({ b }) => { setCompanion(db, b['on'] === true); return { ok: true, on: companionOn(db) }; }],

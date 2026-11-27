@@ -37,3 +37,14 @@ The daily cap was hit. Reading resumes tomorrow by itself, or raise `SCINTLE_DAI
 ## Something else
 
 On the board, open the project menu, then **Help and feedback**, then copy the diagnostics into a [bug report](https://github.com/scintle/scintle/issues/new?template=bug.yml). They hold versions, counts and error lines with secrets and paths removed, never your ideas.
+
+## Calls are billed to an API key
+
+Scintle reads your sessions through your own `claude -p`. When one of these is set in the environment Claude Code started from, `claude -p` uses it instead of your Claude subscription, and doesn't ask ([Claude Code's authentication order](https://code.claude.com/docs/en/authentication)):
+
+- `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX` or `CLAUDE_CODE_USE_FOUNDRY`
+- `ANTHROPIC_AUTH_TOKEN`
+- `ANTHROPIC_API_KEY`
+
+Scintle then says so on the consent card, at the top of the board, and after `/scintle`. To use your Claude plan instead, remove the variable from your shell profile, run `/scintle stop`, and start Claude Code again from a fresh terminal.
+

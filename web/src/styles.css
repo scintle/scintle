@@ -511,3 +511,7 @@ blockquote cite { display: block; margin-top: 3px; font-style: normal; font-size
 .plan-cmd:hover { border-color: var(--accent); }
 .plan-caption { margin: 8px 0 0; text-align: right; color: var(--faint); font-size: 12px; }
 @media (max-width: 640px) { .plan-pair { grid-template-columns: 1fr; } .plan-actions { flex-wrap: wrap; } .plan-spacer { display: none; } }
+
+.consent-list .billing { color: var(--warn); }
+.consent-list .billing b { color: var(--warn); }
+.billing-note p { margin: 0; }
