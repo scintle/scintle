@@ -30,12 +30,24 @@ export function App() {
   }, [load]);
 
   // #idea=I-010 opens that idea: how the Claude Code companion's "Open dashboard" lands on it.
+  // #idea=I-010&event=42 also opens that moment on its timeline and scrolls to it (the "Caught" band's See).
   const hasSnap = snap !== null;
   useEffect(() => {
     if (!hasSnap) return;
     const focus = (): void => {
       const id = /#idea=(I-\d+)/.exec(location.hash)?.[1];
-      if (id) select(id, null);
+      if (!id) return;
+      const ev = Number(/[#&]event=(\d+)/.exec(location.hash)?.[1] ?? NaN);
+      select(id, Number.isNaN(ev) ? null : ev);
+      if (Number.isNaN(ev)) return;
+      // The panel renders after this; try for a second until the moment is on the page.
+      let tries = 0;
+      const scroll = (): void => {
+        const el = document.getElementById(`ev-${ev}`);
+        if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        else if (++tries < 20) setTimeout(scroll, 50);
+      };
+      setTimeout(scroll, 0);
     };
     focus();
     addEventListener('hashchange', focus);

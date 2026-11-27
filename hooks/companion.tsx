@@ -16,20 +16,49 @@ const here = atom({ plugin: 'scintle', key: 'here' } as const, null as Here | nu
 /** What reading recorded since the last session, or from this chat. */
 const caught = atom({ plugin: 'scintle', key: 'caught' } as const, null as CaughtBand | null)
 const SEEN = 'caughtSeen'
+/** Leads a band kept in state from before the copy change (0.1.4). */
+const OLD_LEAD: Record<string, string> = { 'Caught from this chat': 'from this chat', 'Since last time': 'since your last session' }
 
-/** "new idea “Ferry delay map” · a pivot on Standup bot · +2 more" */
+/** Each kind of update as a noun, one and many; the most telling kinds first. */
+const KIND: [string, string, string][] = [
+  ['pivoted', 'a pivot', 'pivots'], ['spawned', 'a spin-off', 'spin-offs'], ['merged', 'a merge', 'merges'],
+  ['released', 'a release', 'releases'], ['dropped', 'a drop', 'drops'], ['parked', 'a pause', 'pauses'],
+  ['revived', 'a revival', 'revivals'], ['decided', 'a decision', 'decisions'], ['researched', 'a research report', 'research reports'],
+  ['planned', 'a saved plan', 'saved plans'], ['building', 'a build start', 'build starts'], ['attached', 'a linked doc', 'linked docs'],
+  ['tried', 'an experiment', 'experiments'], ['renamed', 'a rename', 'renames'], ['narrowed', 'a narrowing', 'narrowings'],
+  ['widened', 'a widening', 'widenings'], ['refined', 'a refinement', 'refinements'], ['resumed', 'a restart', 'restarts'],
+]
+const updates = (n: number): string => `${n} update${n === 1 ? '' : 's'}`
+
+/**
+ * What Scintle saved, always naming the idea.
+ * One idea: "a research report, a linked doc +2 more on Scintle". Several: "4 updates on Scintle · a new idea “Ferry delay map”".
+ */
 function caughtLine(items: readonly CaughtItem[]): string {
-  const born = items.filter(i => i.type === 'born')
-  const moves = items.filter(i => ['pivoted', 'spawned', 'merged', 'dropped', 'released', 'parked'].includes(i.type))
-  const decided = items.filter(i => i.type === 'decided')
-  const parts = [
-    ...born.map(i => `new idea “${i.title}”`),
-    ...moves.map(i => `${i.type} ${i.title}`),
-    ...(decided.length > 0 ? [`${decided.length === 1 ? 'a decision' : `${decided.length} decisions`} on ${[...new Set(decided.map(i => i.title))].join(', ')}`] : []),
-  ]
-  const rest = items.length - born.length - moves.length - decided.length
-  if (rest > 0) parts.push(`${rest} more update${rest === 1 ? '' : 's'}`)
-  return parts.length > 2 ? `${parts.slice(0, 2).join(' · ')} · +${parts.length - 2} more` : parts.join(' · ')
+  const byIdea = new Map<string, CaughtItem[]>()
+  for (const i of items) byIdea.set(i.id, [...(byIdea.get(i.id) ?? []), i])
+  const ideas = [...byIdea.values()].reverse()
+  const born = (g: CaughtItem[]): string | null => (g.some(i => i.type === 'born') ? `a new idea “${g[0]?.title}”` : null)
+  if (ideas.length === 1) {
+    const g = ideas[0] as CaughtItem[]
+    const rest = g.filter(i => i.type !== 'born')
+    const kinds = KIND.map(([t, one, many]) => {
+      const n = rest.filter(i => i.type === t).length
+      return n === 0 ? null : { n, text: n === 1 ? one : `${n} ${many}` }
+    }).filter(k => k !== null)
+    const other = rest.length - kinds.reduce((a, k) => a + k.n, 0)
+    if (other > 0) kinds.push({ n: other, text: other === 1 ? 'an update' : updates(other) })
+    const shown = kinds.slice(0, 2)
+    const more = kinds.slice(2).reduce((a, k) => a + k.n, 0)
+    const list = shown.length === 2 && more === 0 ? `${shown[0]?.text} and ${shown[1]?.text}` : shown.map(k => k.text).join(', ')
+    const what = `${list}${more > 0 ? ` +${more} more` : ''}`
+    const b = born(g)
+    if (b) return what ? `${b}, with ${what}` : b
+    return `${what} on ${g[0]?.title}`
+  }
+  const one = (t: string): string => KIND.find(k => k[0] === t)?.[1] ?? 'an update'
+  const parts = ideas.map(g => born(g) ?? `${g.length === 1 ? one(g[0]?.type ?? '') : updates(g.length)} on ${g[0]?.title}`)
+  return parts.length > 2 ? `${parts.slice(0, 2).join(' · ')} · +${parts.length - 2} more idea${parts.length === 3 ? '' : 's'}` : parts.join(' · ')
 }
 
 /** Shows what reading recorded since `since`; for this chat only when `session` is given. Returns whether anything was. */
@@ -38,6 +67,12 @@ async function showCaught($: EngineInterface, lead: string, since: string, sessi
   if (!r || r.caught.length === 0) return false
   await update($, caught, () => ({ lead, items: r.caught }))
   return true
+}
+
+/** Opens the idea with the latest catch, at the first thing caught on it, so the rest follow below. */
+function seeCaught($: EngineInterface, items: readonly CaughtItem[]): Promise<void> {
+  const id = items.at(-1)?.id ?? ''
+  return openBoard($, id, items.find(i => i.id === id)?.event)
 }
 
 let sessionId = ''
@@ -157,10 +192,10 @@ function factOf(c: IdeaCard, now = Date.now()): Fact {
   return { ...base, text: `${c.total} moments since ${born ? dateOf(born.ts) : 'it began'} · latest: ${last ? LABEL[last.type] ?? last.type : 'born'}`, quote: '', tail: '', cta: 'Open dashboard' }
 }
 
-/** Opens the board on one idea in the person's browser. */
-async function openBoard($: EngineInterface, id: string): Promise<void> {
+/** Opens the board on one idea in the person's browser; with `event`, scrolled to that moment on its timeline. */
+async function openBoard($: EngineInterface, id: string, event?: number): Promise<void> {
   if (base === null && !(await connect($))) { $.ui.toast(`${MARK} isn't running. Start it with /scintle.`); return }
-  const url = `http://127.0.0.1:${port}/?t=${token}#idea=${id}`
+  const url = `http://127.0.0.1:${port}/?t=${token}#idea=${id}${event === undefined ? '' : `&event=${event}`}`
   const os = (await $.process.run(['uname'])).stdout.trim()
   const r = await $.process.run([os === 'Darwin' ? 'open' : 'xdg-open', url]).catch(() => null)
   if (!r || r.exitCode !== 0) $.ui.toast(`${MARK}: open http://127.0.0.1:${port} and pick ${id}`, { timeoutMs: 10000 })
@@ -312,9 +347,9 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const caughtRow = got === null ? null : (
       <Box gap={2} key="caught">
-        <Text><Text color={C.good} bold>✦ </Text><Text color={C.faint}>{got.lead}: </Text><Text color={C.ink}>{caughtLine(got.items)}</Text></Text>
-        <Button plain key="caught-see" label="See it on the board" onPress={() => openBoard($, got.items[got.items.length - 1]?.id ?? '')}>
-          <Text backgroundColor={C.good} color="#0c0e14" bold>{' See '}</Text>
+        <Text><Text color={C.good} bold>✦ </Text><Text color={C.faint}>Scintle saved {OLD_LEAD[got.lead] ?? got.lead}: </Text><Text color={C.ink}>{caughtLine(got.items)}</Text></Text>
+        <Button plain key="caught-see" label="Open the timeline on the Scintle board" onPress={() => seeCaught($, got.items)}>
+          <Text backgroundColor={C.good} color="#0c0e14" bold>{' Open timeline '}</Text>
         </Button>
         <Button plain dimColor key="caught-dismiss" label="Dismiss" onPress={() => update($, caught, () => null)}><Text color={C.faint}>×</Text></Button>
       </Box>
@@ -415,7 +450,7 @@ export const register: Register = on => {
     const now = new Date().toISOString()
     const seen = await $.store.get(SEEN)
     await update($, caught, () => null)
-    if (typeof seen === 'string') await showCaught($, 'Since last time', seen)
+    if (typeof seen === 'string') await showCaught($, 'since your last session', seen)
     await $.store.set(SEEN, now)
     checkedAt = now
     if (!watching) {
@@ -424,7 +459,7 @@ export const register: Register = on => {
       $.clock.every(60_000, async () => {
         if (!enabled) return
         const at = new Date().toISOString()
-        if (await showCaught($, 'Caught from this chat', checkedAt, sessionId)) await $.store.set(SEEN, at)
+        if (await showCaught($, 'from this chat', checkedAt, sessionId)) await $.store.set(SEEN, at)
         checkedAt = at
       })
     }

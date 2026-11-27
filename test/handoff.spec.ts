@@ -163,7 +163,7 @@ describe('what reading caught', () => {
     const c = addEvent(db, { ideaId: 'I-002', type: 'decided', ts: '2026-11-10T10:00:00.000Z', origin: 'user', payload: { decision: 'by hand' }, sessionId: 'sB' });
     at('2026-11-10T10:00:00.000Z', a); at('2026-11-10T11:00:00.000Z', b); at('2026-11-10T11:00:00.000Z', c);
     expect(caughtSince(db, '2026-11-10T09:00:00.000Z').map((x) => x.id)).toEqual(['I-001', 'I-002']);
-    expect(caughtSince(db, '2026-11-10T10:30:00.000Z')).toEqual([{ id: 'I-002', title: 'Chord change trainer', type: 'tried', detail: 'a metronome' }]);
+    expect(caughtSince(db, '2026-11-10T10:30:00.000Z')).toMatchObject([{ id: 'I-002', title: 'Chord change trainer', type: 'tried', detail: 'a metronome', event: expect.any(Number) }]);
     expect(caughtSince(db, '2026-11-10T09:00:00.000Z', 'sA').map((x) => x.id)).toEqual(['I-001']);
   });
 });

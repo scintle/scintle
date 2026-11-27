@@ -15,7 +15,7 @@ In a folder Scintle knows, one row appears above the prompt:
 
 **Pick up** puts "Let's pick up Weekly Pulse (I-004) where I left off." in your prompt box; sending it is up to you. In a folder you work on several ideas in, like `~/Workspace`, it says **Last here** instead. Your home folder never gets one.
 
-If Scintle read something since your last session, a second row says what: `✦ Since last time: new idea “Ferry delay map” · a decision on Trail alerts`.
+If Scintle read something since your last session, a second row says what: `✦ Scintle saved since your last session: a decision on Trail alerts · a new idea “Ferry delay map”`, with an **Open timeline** button that lands on the first of those moments.
 
 ## When you name an idea
 

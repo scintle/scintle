@@ -20,7 +20,7 @@ export type Picker = { q: string; closed: boolean; ideas: PickIdea[] }
 export type Here = { id: string; title: string; stage: string; step: string; detail: string; at: string; others: number }
 
 /** What reading recorded, for the band: since the last session, or from this chat (D35). */
-export type CaughtItem = { id: string; title: string; type: string; detail: string }
+export type CaughtItem = { id: string; title: string; type: string; detail: string; event?: number }
 export type CaughtBand = { lead: string; items: CaughtItem[] }
 
 declare module 'claude-code' {

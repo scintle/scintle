@@ -233,16 +233,16 @@ export function recordPlan(db: Db, sessionId: string, plan: string): { id: strin
   return idea;
 }
 
-export type Caught = { id: string; title: string; type: string; detail: string };
+export type Caught = { id: string; title: string; type: string; detail: string; event: number };
 
 /** What reading recorded since `since` (inferred events, by when they were recorded), optionally for one session. */
 export function caughtSince(db: Db, since: string, sessionId = ''): Caught[] {
   const rows = db.prepare(
-    `SELECT e.idea_id AS id, i.title, e.type, e.payload FROM events e JOIN ideas i ON i.id = e.idea_id
+    `SELECT e.id AS event, e.idea_id AS id, i.title, e.type, e.payload FROM events e JOIN ideas i ON i.id = e.idea_id
      WHERE e.origin = 'inferred' AND e.state != 'removed' AND e.created_at > ? AND (? = '' OR e.session_id = ?)
      ORDER BY e.created_at`,
-  ).all(since, sessionId, sessionId) as { id: string; title: string; type: string; payload: string }[];
-  return rows.map((r) => ({ id: r.id, title: r.title, type: r.type, detail: stepOf(r.type, r.payload).detail }));
+  ).all(since, sessionId, sessionId) as { event: number; id: string; title: string; type: string; payload: string }[];
+  return rows.map((r) => ({ id: r.id, title: r.title, type: r.type, detail: stepOf(r.type, r.payload).detail, event: r.event }));
 }
 
 /** The folder the idea was last worked in, from its sessions; home when none still exists. */

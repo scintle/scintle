@@ -106,7 +106,7 @@ test('the band says "last here" in a folder shared by several ideas, and nothing
 })
 
 test('what reading caught shows above the prompt, beside where you left off', async ($, on) => {
-  const got = { lead: 'Since last time', items: [
+  const got = { lead: 'since your last session', items: [
     { id: 'I-009', title: 'Ferry delay map', type: 'born', detail: '' },
     { id: 'I-002', title: 'Trail alerts', type: 'decided', detail: 'fridays' },
   ] }
@@ -116,7 +116,8 @@ test('what reading caught shows above the prompt, beside where you left off', as
   })
   on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine band' }))
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /new idea “Ferry delay map” · a decision on Trail alerts/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /a decision on Trail alerts · a new idea “Ferry delay map”/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /Scintle saved since your last session/ })).toBeTruthy()
   expect(await ui.find({ type: 'Button', key: 'caught-see' })).toBeTruthy()
   expect(await ui.find({ type: 'Button', key: 'pickup' })).toBeTruthy()
   await ui.unmount()
