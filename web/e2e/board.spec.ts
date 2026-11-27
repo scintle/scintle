@@ -130,7 +130,7 @@ test('Lineage filters: status chips narrow the lanes, and a date range re-scales
 
 test('Usage sharing: off until turned on, shows the exact message, and a dev build never sends', async ({ page }) => {
   await open(page);
-  await page.getByLabel('Project').selectOption({ label: 'Usage sharing…' });
+  await page.getByLabel('Project').selectOption({ label: 'Usage sharing' });
   const dialog = page.getByRole('dialog', { name: 'Usage sharing' });
   await expect(dialog.getByText('Nothing is sent until you say yes')).toBeVisible();
   await expect(dialog.locator('pre.json').first()).toContainText('"event": "daily_active"');
@@ -143,7 +143,7 @@ test('Usage sharing: off until turned on, shows the exact message, and a dev bui
 
 test('Help and feedback: diagnostics show versions and counts, never an idea', async ({ page }) => {
   await open(page);
-  await page.getByLabel('Project').selectOption({ label: 'Help and feedback…' });
+  await page.getByLabel('Project').selectOption({ label: 'Help and feedback' });
   const dialog = page.getByRole('dialog', { name: 'Help and feedback' });
   const diag = dialog.locator('pre.json');
   await expect(diag).toContainText(/Scintle \d+\.\d+\.\d+/);

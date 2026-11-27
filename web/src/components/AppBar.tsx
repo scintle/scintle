@@ -67,9 +67,9 @@ export function AppBar() {
             <option value="">All projects</option>
             {projects.map((p) => <option key={p} value={p}>{p}</option>)}
             <option disabled>──────────</option>
-            <option value={FOLDERS}>Folders Scintle reads…</option>
-            <option value={TELEMETRY}>Usage sharing…</option>
-            <option value={HELP}>Help and feedback…</option>
+            <option value={FOLDERS}>Folders Scintle reads</option>
+            <option value={TELEMETRY}>Usage sharing</option>
+            <option value={HELP}>Help and feedback</option>
           </select>
         </label>
       </div>

@@ -74,7 +74,7 @@ To a small collector we run on Cloudflare's free plan; its code is in [`telemetr
 
 ## Check it, change it
 
-- On the board: project menu, then **Usage sharing…** shows the next message, the last one sent, and an on/off switch.
+- On the board: project menu, then **Usage sharing** shows the next message, the last one sent, and an on/off switch.
 - In Claude Code: `/scintle telemetry`, `/scintle telemetry enable`, `/scintle telemetry disable`.
 - `DO_NOT_TRACK=1` or `SCINTLE_TELEMETRY_DISABLED=1` keeps it off whatever you chose. It's also off in CI.
 - `SCINTLE_TELEMETRY_DEBUG=1` writes the message to Scintle's log instead of sending it.

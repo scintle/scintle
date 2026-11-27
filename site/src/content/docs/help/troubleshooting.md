@@ -36,4 +36,4 @@ The daily cap was hit. Reading resumes tomorrow by itself, or raise `SCINTLE_DAI
 
 ## Something else
 
-On the board, open the project menu, then **Help and feedback…**, then copy the diagnostics into a [bug report](https://github.com/scintle/scintle/issues/new?template=bug.yml). They hold versions, counts and error lines with secrets and paths removed, never your ideas.
+On the board, open the project menu, then **Help and feedback**, then copy the diagnostics into a [bug report](https://github.com/scintle/scintle/issues/new?template=bug.yml). They hold versions, counts and error lines with secrets and paths removed, never your ideas.

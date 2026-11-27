@@ -48,7 +48,7 @@ Details: [What it reads, stores and sends](https://scintle.github.io/scintle/tru
 ## Feedback
 
 Scintle is in beta. [Open an issue](https://github.com/scintle/scintle/issues/new/choose); on the board,
-**Help and feedback…** copies diagnostics that never include your ideas.
+**Help and feedback** copies diagnostics that never include your ideas.
 
 ## Develop
 

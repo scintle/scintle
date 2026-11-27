@@ -11,7 +11,7 @@ Claude Code deletes session transcripts after 30 days by default. Plans, specs a
 
 ## Add one
 
-- On the board: the project menu, then **Folders Scintle reads…**, then type a path.
+- On the board: the project menu, then **Folders Scintle reads**, then type a path.
 - Or, in a Claude Code session inside that folder: `/scintle add`.
 
 ## What's read inside it
