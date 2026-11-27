@@ -3,6 +3,11 @@ title: Changelog
 description: What changed in each Scintle release.
 ---
 
+## 0.1.6
+
+- Plan implementation shows the idea's story instead of a raw brief: how it got here, its lifecycle, decisions and dead ends with the words behind them, and what Claude will be asked. Copy brief, the `/scintle:plan` command and Plan in a new session sit on one row.
+- The description now says it plainly: Scintle finds your ideas on its own; you never type one in.
+
 ## 0.1.5
 
 - The "saved" line above the prompt says it's Scintle, names the idea and the kinds of update ("Scintle saved from this chat: a research report, a linked doc +2 more on Scintle"), and its **Open timeline** button lands on the first of those moments on the board, not the top of the idea.
