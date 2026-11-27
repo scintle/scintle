@@ -1,57 +1,108 @@
-# Scintle
+<p align="center">
+  <img src="docs/media/mark.svg" width="72" alt="Scintle">
+</p>
 
-**Your AI chats, turned into a history of your ideas.**
+<h1 align="center">Scintle</h1>
 
-You never type an idea in. Scintle finds every idea in your Claude Code sessions on its own, in the chats
-you already had and the ones you're having now, and keeps each one under a stable ID with its whole history:
-renamed, narrowed, pivoted, parked, released, dropped. You only correct it when it's wrong.
+<p align="center"><b>Your AI chats, turned into a history of your ideas.</b></p>
 
-**Docs: [scintle.github.io/scintle](https://scintle.github.io/scintle/)**
+<p align="center">
+  <a href="https://github.com/scintle/scintle/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/scintle/scintle?style=flat-square"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
+  <a href="https://scintle.github.io/scintle/"><img alt="Docs" src="https://img.shields.io/badge/docs-scintle.github.io-6467ff?style=flat-square"></a>
+</p>
 
-![In Claude Code, on made-up ideas: someone half-remembers an idea about splitting money on group trips; Scintle finds it and Claude tells its story and where it was left; then the board opens on it and replays how two ideas merged into one](docs/media/scintle-story.gif)
+<p align="center">
+  <a href="https://scintle.github.io/scintle/">Docs</a> ·
+  <a href="https://scintle.github.io/scintle/start/install/">Install</a> ·
+  <a href="https://scintle.github.io/scintle/trust/privacy/">What it reads and sends</a> ·
+  <a href="https://github.com/scintle/scintle/issues/new/choose">Feedback</a>
+</p>
+
+![Scintle in Claude Code: a half-remembered idea about splitting money on group trips is found, Claude tells how it began as two ideas that merged and where it was left, and the board replays its story](docs/media/scintle-story.gif)
+
+## Why
+
+If you build with Claude Code, your ideas live in your sessions. One gets sketched on a Tuesday, narrowed the
+next week, renamed, parked for something more urgent, and picked up two months later by a version of you who
+no longer remembers why it was parked. The reasoning is all there, scattered across dozens of chats that
+Claude Code deletes after 30 days by default.
+
+Scintle keeps that story for you. It reads your sessions in the background, finds the ideas in them and keeps
+each one's history: where it started, what you decided, what you tried and dropped, and how it ended. You never
+type an idea in.
+
+## What you get
+
+- **An idea canvas that fills itself.** New ideas, renames, pivots, pauses and releases show up as you work. Anything
+  it isn't sure of is marked as a guess until you keep it, and one click fixes it when it's wrong.
+- **Every idea's story.** Each idea keeps one ID through every rename and change of scope, with a timeline of
+  what happened and the words that were said at each step.
+- **Pick up where you left off.** Start Claude Code in a project and a line above the prompt tells you where
+  that idea stands. Name an idea in a prompt and Claude reads its history before answering.
+- **Plan with the history attached.** `/scintle:plan` hands an idea's story, its decisions and its dead ends to
+  plan mode, and the plan you approve comes back to the idea's timeline.
+- **Replay.** Watch months of ideas being born, branching, merging and ending, in seconds.
+- **Local, no account.** One database on your disk and a board on `127.0.0.1`. Nothing goes to a Scintle
+  server unless you turn on usage sharing.
 
 ## Install
 
-Needs Claude Code, Node.js 22.13 or newer, and macOS or Linux.
+You need Claude Code, Node.js 22.13 or newer, and macOS or Linux.
 
 ```sh
 npx scintle install
 ```
 
-It shows Claude Code's own install command (`claude plugin install scintle --marketplace scintle/scintle`) and
-asks before running it. Then start a new Claude Code session and run `/scintle`.
+That shows Claude Code's own install command and runs it after you say yes. Or run it yourself:
+
+```sh
+claude plugin install scintle --marketplace scintle/scintle
+```
+
+Then start a new Claude Code session and type `/scintle`. The board opens and asks before it reads anything,
+with the number of sessions it found and how many model calls reading them will take.
 
 | Command | What it does |
 |---|---|
-| `/scintle` | Opens the board. |
-| `/scintle:plan` | Pick an idea and plan it with its full history (or `/scintle:plan I-007`). |
+| `/scintle` | Opens the board |
+| `/scintle:plan` | Pick an idea and plan it with its history (or `/scintle:plan I-007`) |
+| `/scintle add`, `sync`, `stop`, `forget` | Read this folder's docs, read new sessions now, stop the server, delete everything |
+| `/scintle companion on\|off`, `telemetry` | Turn the in-chat companion or usage sharing on or off |
 
-`/scintle` also takes a word: `add` (read this folder's docs), `sync`, `stop`, `companion on|off`, `telemetry`, `forget`.
+## How it works
 
-## The board
+1. **Read.** A small local server (`scintled`) watches Claude Code's own folder, `~/.claude`: your sessions and
+   saved plans. It reads other folders only if you add them, and nothing at all until you say yes.
+2. **Extract.** It sends each session, with secrets removed first, to your own `claude -p`, which returns the
+   ideas and what happened to them. These calls run with no tools, on your Claude plan, under a daily cap.
+3. **Keep.** Ideas and their events go into one SQLite database in `~/.local/share/scintle`. An idea keeps its
+   ID when it's renamed or narrowed. A pivot or a spin-off becomes a new idea linked to where it came from.
+4. **Show.** The board in your browser, and a companion inside Claude Code that answers "what happened to that
+   idea?" from the same database.
 
-Every idea, with its history, on a board in your browser. Replay plays it back over time.
+## Privacy
 
-![Replaying five months of made-up ideas on Scintle's board: each one born, renamed, spun off and dropped, with the words behind every step](docs/media/scintle-replay.gif)
+- **Reads** `~/.claude` and folders you add. Nothing else on your disk.
+- **Stores** one local database. Secrets are redacted before anything is written.
+- **Sends** session text, redacted, to your own `claude` command, only after you say yes. **Research**, only
+  when you press it, lets `claude` search and read the web.
+- **Bills** your Claude plan. If `ANTHROPIC_API_KEY` or a cloud provider is set where Claude Code starts,
+  `claude` bills that instead, and Scintle tells you.
+- **Usage sharing** is off unless you turn it on: one anonymous daily count, no ID, with a
+  [published schema](https://scintle.github.io/scintle/trust/telemetry/).
 
-## What it reads, stores and sends
+The full list: [What it reads, stores and sends](https://scintle.github.io/scintle/trust/privacy/).
 
-- **Reads** Claude's own folder, `~/.claude`, plus folders you add. Never anything else on your disk.
-- **Stores** one local database in `~/.local/share/scintle`, with secrets redacted before anything is written.
-- **Sends** session text, redacted, to your own `claude` command to read it, after you say yes. Those calls
-  have no tools. **Research**, only when you press it, lets `claude` search and read the web. Plus an
-  anonymous daily count with no ID, only if you turn it on. If `ANTHROPIC_API_KEY` or a cloud provider is
-  set, `claude` bills that instead of your Claude plan; Scintle tells you when it is.
+## Status
 
-Details: [What it reads, stores and sends](https://scintle.github.io/scintle/trust/privacy/) ·
-[Telemetry](https://scintle.github.io/scintle/trust/telemetry/) ·
-[Known gaps in the beta](https://scintle.github.io/scintle/trust/known-gaps/)
+Scintle is in beta and reads Claude Code only. Codex and others are planned. See
+[known gaps](https://scintle.github.io/scintle/trust/known-gaps/).
 
-## Feedback
+If it gets an idea wrong, that's the most useful thing you can tell me.
+[Open an issue](https://github.com/scintle/scintle/issues/new/choose); on the board, **Help and feedback**
+copies diagnostics that never include your ideas.
 
-Scintle is in beta. [Open an issue](https://github.com/scintle/scintle/issues/new/choose); on the board,
-**Help and feedback** copies diagnostics that never include your ideas.
+## Contributing
 
-## Develop
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Licensed under [MIT](LICENSE).
