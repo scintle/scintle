@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- The "saved" line above the prompt says it's Scintle, names the idea and the kinds of update ("Scintle saved from this chat: a research report, a linked doc +2 more on Scintle"), and its **Open timeline** button lands on the first of those moments on the board, not the top of the idea.
+
 ## 0.1.4
 
 - With an idea open, Replay plays just that idea's story, and the replay feed shows even with an idea open.
