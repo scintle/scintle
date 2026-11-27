@@ -16,8 +16,8 @@
       "category": "Productivity",
       "source": {
         "source": "archive",
-        "url": "https://github.com/scintle/scintle/releases/download/v0.1.5/scintle-0.1.5.zip",
-        "sha256": "e51c8b91c7f980577dae2b9381bfdb4f76aec609ff8c1ff269fa8fbd2f133be3"
+        "url": "https://github.com/scintle/scintle/releases/download/v0.1.6/scintle-0.1.6.zip",
+        "sha256": "2d2952c006978b39603d69154f34678d8a18c856696dc6237ffe3b90316f114b"
       },
       "homepage": "https://scintle.github.io/scintle/"
     }
