@@ -3,6 +3,10 @@ title: Changelog
 description: What changed in each Scintle release.
 ---
 
+## 0.1.8
+
+- A clearer description and keywords in the plugin listing, and a rewritten README.
+
 ## 0.1.7
 
 - If `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or a cloud provider is set where Claude Code starts, its `claude -p` bills that instead of your Claude plan. Scintle now says so on the consent card and at the top of the board, with how to switch back.

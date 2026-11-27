@@ -1,6 +1,6 @@
 {
   "name": "scintle",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Your AI chats, turned into a history of your ideas, found on their own. A Claude Code plugin: `npx scintle install` installs it through Claude Code's own installer, after you say yes.",
   "license": "MIT",
   "type": "module",
