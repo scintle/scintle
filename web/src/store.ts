@@ -1,3 +1,4 @@
+import type { BriefView } from './lib/api';
 /** App state: the server snapshot plus what the person is looking at. One store, no other source of truth. */
 
 import { create } from 'zustand';
@@ -21,7 +22,7 @@ type State = {
   project: string | null;
   selected: string | null;
   openEvent: number | null;
-  dialog: null | 'new' | 'cmd' | 'consent' | 'folders' | 'telemetry' | 'help' | { brief: string };
+  dialog: null | 'new' | 'cmd' | 'consent' | 'folders' | 'telemetry' | 'help' | { brief: string; view?: BriefView };
   groups: Set<StatusGroup>;
   /** Moments a replay has played so far, newest last; null when no replay is showing. */
   reel: Caption[] | null;

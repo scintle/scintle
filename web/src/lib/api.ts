@@ -13,7 +13,12 @@ export function post<T = ActionResult>(path: string, body: object = {}): Promise
   return request(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 }
 
-export type Brief = { id: number; body: string; version: number };
+export type BriefItem = { ts: string; type: string; label: string; quote: string };
+export type BriefView = {
+  id: string; title: string; problem: string; stage: string; earlierNames: string[]; origins: string[];
+  sections: { key: string; title: string; items: BriefItem[] }[]; ask: string;
+};
+export type Brief = { id: number; body: string; version: number; view?: BriefView };
 export type AskReply = { kind: 'select'; idea: string; text: string } | { kind: 'answer'; text: string } | { kind: 'none'; text: string };
 
 export const getDiagnostics = (): Promise<{ text: string }> => request('/api/diagnostics');

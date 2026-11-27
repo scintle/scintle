@@ -115,7 +115,7 @@ export function App() {
       {dialog === 'telemetry' && <TelemetryDialog />}
       {dialog === 'help' && <HelpDialog />}
       {dialog === 'consent' && <ConsentDialog><Consent onDone={() => setDialog(null)} /></ConsentDialog>}
-      {dialog !== null && typeof dialog === 'object' && <BriefDialog body={dialog.brief} />}
+      {dialog !== null && typeof dialog === 'object' && <BriefDialog body={dialog.brief} view={dialog.view} />}
       <Toasts />
     </div>
   );

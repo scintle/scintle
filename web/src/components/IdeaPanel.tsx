@@ -26,7 +26,7 @@ export function IdeaPanel({ idea, events }: { idea: Idea; events: Ev[] }) {
     setBusy(true);
     try {
       const b = await post<Brief>(`/api/ideas/${idea.id}/brief`);
-      setDialog({ brief: b.body });
+      setDialog({ brief: b.body, view: b.view });
     } catch (e) {
       toast((e as Error).message);
     } finally {

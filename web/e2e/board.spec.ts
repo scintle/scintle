@@ -79,12 +79,17 @@ test('⌘K finds an idea by name', async ({ page }) => {
   await expect(page.getByRole('complementary')).toContainText('Recipe scaler');
 });
 
-test('Plan implementation shows a brief with the marker and the command', async ({ page }) => {
+test('Plan implementation shows the idea\'s story and the command; the brief keeps its marker', async ({ page }) => {
   await open(page);
   await page.locator('.card', { hasText: 'Trail alerts' }).click();
   await page.getByRole('button', { name: 'Plan implementation' }).click();
-  await expect(page.locator('.brief')).toContainText('scintle:idea=I-001@v');
-  await expect(page.getByRole('button', { name: 'Copy /scintle:plan I-001' })).toBeVisible();
+  const dialog = page.getByRole('dialog', { name: 'Plan implementation' });
+  await expect(dialog.getByRole('heading', { name: 'Trail alerts' })).toBeVisible();
+  await expect(dialog.getByText('What Claude is asked')).toBeVisible();
+  await expect(dialog.locator('.plan-cmd')).toContainText('/scintle:plan I-001');
+  const brief = (await api('/api/ideas/I-001/brief', {})) as { body: string; view: { id: string } };
+  expect(brief.body).toContain('scintle:idea=I-001@v');
+  expect(brief.view.id).toBe('I-001');
 });
 
 test('Live update: an idea made elsewhere appears without a reload', async ({ page }) => {
