@@ -9,8 +9,10 @@
   "repository": "https://github.com/scintle/scintle",
   "license": "MIT",
   "keywords": [
+    "claude-code",
     "ideas",
-    "local-first",
+    "decision-log",
+    "project-history",
     "planning",
     "lineage"
   ],

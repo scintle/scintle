@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "scintle",
-  "description": "The Scintle plugin for Claude Code.",
+  "description": "Finds the ideas in your Claude Code sessions on its own and keeps each one's history: where it started, what you decided, what you dropped.",
   "owner": {
     "name": "scintle contributors",
     "url": "https://github.com/scintle/scintle"
