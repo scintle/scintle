@@ -60,8 +60,11 @@ That shows Claude Code's own install command and runs it after you say yes. Or r
 claude plugin install scintle --marketplace scintle/scintle
 ```
 
-Then start a new Claude Code session and type `/scintle`. The board opens and asks before it reads anything,
-with the number of sessions it found and how many model calls reading them will take.
+## Usage
+
+Start a new Claude Code session and type `/scintle`. The board opens and asks before it reads anything,
+with the number of sessions it found and how many model calls reading them will take. After that it keeps up
+on its own: new sessions are read as you work, and the line above the prompt tells you what it saved.
 
 | Command | What it does |
 |---|---|
