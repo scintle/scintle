@@ -3,6 +3,10 @@ title: Changelog
 description: What changed in each Scintle release.
 ---
 
+## 0.1.9
+
+- The README has its own Usage section.
+
 ## 0.1.8
 
 - A clearer description and keywords in the plugin listing, and a rewritten README.
