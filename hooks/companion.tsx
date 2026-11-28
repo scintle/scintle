@@ -141,7 +141,11 @@ const dateOf = (ts: string): string => {
   const d = new Date(day ? `${ts}T12:00:00` : ts)
   return `${MONTHS[d.getMonth()]} ${d.getDate()}`
 }
-const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
+const clip = (s: string, n: number): string => {
+  if (s.length <= n) return s
+  const cut = s.slice(0, n - 1)
+  return `${(cut.includes(' ') ? cut.slice(0, cut.lastIndexOf(' ')) : cut).trimEnd()}…`
+}
 const str = (ev: CardEvent, k: string): string => (typeof ev.payload[k] === 'string' ? (ev.payload[k] as string) : '')
 
 /**

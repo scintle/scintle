@@ -133,6 +133,15 @@ describe('where you left off', () => {
     expect(hereFor(db, homedir())).toEqual({ idea: null, others: 0 });
     expect(hereFor(db, '/elsewhere')).toEqual({ idea: null, others: 0 });
   });
+
+  it('cuts a long detail at a word, with an ellipsis', () => {
+    session('s9', '~/code/longword');
+    const long = 'Drop LinkedIn cold outreach for testers in favour of an organic route: helpful replies in existing threads, posts and build in public';
+    addEvent(db, { ideaId: 'I-001', type: 'decided', ts: '2026-11-09T10:00:00.000Z', origin: 'inferred', confidence: 0.9, payload: { decision: long }, sessionId: 's9' });
+    const detail = hereFor(db, `${homedir()}/code/longword`).idea?.detail ?? '';
+    expect(detail.length).toBeLessThanOrEqual(120);
+    expect(detail).toMatch(/threads, posts and…$/);
+  });
 });
 
 describe('plans approved in plan mode', () => {

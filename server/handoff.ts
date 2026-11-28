@@ -171,12 +171,19 @@ export type Here = {
   others: number;
 };
 
+/** Cut to n characters at a word boundary, marked with an ellipsis. */
+const clip = (s: string, n: number): string => {
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n - 1);
+  return `${(cut.includes(' ') ? cut.slice(0, cut.lastIndexOf(' ')) : cut).trimEnd()}…`;
+};
+
 /** One readable line for an event: its type's word, and what it says. */
 function stepOf(type: string, payload: string): { step: string; detail: string } {
   const p = JSON.parse(payload) as Record<string, unknown>;
   const s = (k: string): string => (typeof p[k] === 'string' ? (p[k] as string) : '');
   const detail = s('decision') || s('approach') || s('plan') || s('summary') || s('problem') || s('note') || s('evidence') || s('why');
-  return { step: type, detail: detail.slice(0, 120) };
+  return { step: type, detail: clip(detail, 120) };
 }
 
 /**
@@ -208,7 +215,7 @@ export function hereFor(db: Db, cwd: string): Here {
   ).get(pick.id) as { type: string; payload: string; quote: string | null; ts: string } | undefined;
   const found = last ? stepOf(last.type, last.payload) : { step: 'born', detail: '' };
   // An event with no detail of its own still has the words it came from.
-  const step = { ...found, detail: found.detail || (last?.quote ?? '').slice(0, 120) };
+  const step = { ...found, detail: found.detail || clip(last?.quote ?? '', 120) };
   return { idea: { ...idea, ...step, at: last?.ts ?? '' }, others: owner ? 0 : rows.length - 1 };
 }
 
